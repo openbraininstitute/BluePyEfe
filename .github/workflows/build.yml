@@ -18,8 +18,9 @@ jobs:
     environment:  # needed for pypi publication
       name: pypi
       url: https://pypi.org/p/bluepyefe
-    permissions:  # needed for pypi publication
-      id-token: write
+    permissions:
+      contents: write  # needed for pushing the tag
+      id-token: write  # needed for pypi publication
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python 3.10
