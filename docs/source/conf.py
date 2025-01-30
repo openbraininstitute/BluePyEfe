@@ -122,8 +122,8 @@ html_theme = 'sphinx-bluebrain-theme'
 html_title = 'BluepyEfe'
 html_show_sourcelink = False
 html_theme_options = {
-    "repo_url": "https://github.com/BlueBrain/BluePyEfe/",
-    "repo_name": "BlueBrain/BluePyEfe"
+    "repo_url": "https://github.com/openbraininstitute/BluePyEfe/",
+    "repo_name": "openbraininstitute/BluePyEfe"
 }
 
 # Theme options are theme-specific and customize the look and feel of a theme

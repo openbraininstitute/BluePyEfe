@@ -27,10 +27,10 @@ Introduction
 
 BluePyEfe aims at easing the process of reading experimental recordings and extracting
 batches of electrical features from these recordings. To do so, it combines trace reading
-functions and features extraction functions from the `eFel library <https://github.com/BlueBrain/eFEL>`_.
+functions and features extraction functions from the `eFel library <https://github.com/openbraininstitute/eFEL>`_.
 
 BluePyEfe outputs protocols and features files in the format used
-by `BluePyOpt <https://github.com/BlueBrain/BluePyOpt>`_ for neuron electrical model building.
+by `BluePyOpt <https://github.com/openbraininstitute/BluePyOpt>`_ for neuron electrical model building.
 
 How to cite
 ===========
@@ -42,7 +42,7 @@ Requirements
 ============
 
 * `Python 3.9+ <https://www.python.org/downloads/release/python-380/>`_
-* `eFEL eFeature Extraction Library <https://github.com/BlueBrain/eFEL>`_ (automatically installed by pip)
+* `eFEL eFeature Extraction Library <https://github.com/openbraininstitute/eFEL>`_ (automatically installed by pip)
 * `Numpy <http://www.numpy.org>`_ (automatically installed by pip)
 * `Scipy <https://www.scipy.org/>`_ (automatically installed by pip)
 * `Neo <https://neo.readthedocs.io/en/stable/>`_ (automatically installed by pip)
@@ -64,7 +64,7 @@ Quick Start and Operating Principle
 For a hands-on introduction to BluePyEfe, have a look at the notebook `examples/example_of_extraction.ipynb <examples/example_of_extraction.ipynb>`_
 
 The goal of the present package is to extract meaningful electrophysiological features (e-features) from voltage time series.
-The e-features considered in the present package are the one implemented in the `eFEL python library <https://github.com/BlueBrain/eFEL>`_. See `this pdf <https://bluebrain.github.io/eFEL/efeature-documentation.pdf>`_ for a list of available e-features.
+The e-features considered in the present package are the one implemented in the `eFEL python library <https://github.com/openbraininstitute/eFEL>`_. See `this pdf <https://bluebrain.github.io/eFEL/efeature-documentation.pdf>`_ for a list of available e-features.
 
 The present package makes one major assumption: E-features are more meaningful if they are coming from a set of traces rather than a single trace. And they are even more meaningful if these traces come from different cells of the same cellular type.
 This assumption dictates the organisation of the package and has several consequences:
@@ -103,16 +103,16 @@ Copyright (c) 2016-2024 Blue Brain Project/EPFL
                :target: https://bluepyefe.readthedocs.io/
                :alt: latest documentation
 .. |license| image:: https://img.shields.io/pypi/l/bluepyefe.svg
-                  :target: https://github.com/BlueBrain/bluepyefe/blob/master/LICENSE.txt
+                  :target: https://github.com/openbraininstitute/bluepyefe/blob/master/LICENSE.txt
                   :alt: license
-.. |tests| image:: https://github.com/BlueBrain/BluePyEfe/workflows/Build/badge.svg?branch=master
-                :target: https://github.com/BlueBrain/BluePyEfe/actions
+.. |tests| image:: https://github.com/openbraininstitute/BluePyEfe/workflows/Build/badge.svg?branch=master
+                :target: https://github.com/openbraininstitute/BluePyEfe/actions
                 :alt: Actions build status
-.. |coverage| image:: https://codecov.io/github/BlueBrain/BluePyEfe/coverage.svg?branch=master
-                   :target: https://codecov.io/gh/BlueBrain/BluePyEfe
+.. |coverage| image:: https://codecov.io/github/openbraininstitute/BluePyEfe/coverage.svg?branch=master
+                   :target: https://codecov.io/gh/openbraininstitute/BluePyEfe
                    :alt: coverage
 .. |gitter| image:: https://badges.gitter.im/Join%20Chat.svg
-                 :target: https://gitter.im/bluebrain/bluepyefe
+                 :target: https://gitter.im/openbraininstitute/bluepyefe
                  :alt: gitter
 .. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3728191.svg
                  :target: https://doi.org/10.5281/zenodo.3728191
@@ -126,5 +126,5 @@ Copyright (c) 2016-2024 Blue Brain Project/EPFL
     to skip content after the marker 'substitutions'.
 
 .. substitutions
-.. |banner| image::  https://raw.githubusercontent.com/BlueBrain/BluePyEfe/master/docs/source/logo/BluePyEfeBanner.jpg
+.. |banner| image::  https://raw.githubusercontent.com/openbraininstitute/BluePyEfe/master/docs/source/logo/BluePyEfeBanner.jpg
 

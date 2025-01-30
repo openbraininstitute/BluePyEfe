@@ -36,10 +36,10 @@ keywords = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/BlueBrain/BluePyEfe"
-Source = "https://github.com/BlueBrain/BluePyEfe"
-Repository = "https://github.com/BlueBrain/BluePyEfe.git"
-Tracker = "https://github.com/BlueBrain/BluePyEfe/issues"
+Homepage = "https://github.com/openbraininstitute/BluePyEfe"
+Source = "https://github.com/openbraininstitute/BluePyEfe"
+Repository = "https://github.com/openbraininstitute/BluePyEfe.git"
+Tracker = "https://github.com/openbraininstitute/BluePyEfe/issues"
 Documentation = "https://bluepyefe.readthedocs.io/en/latest"
 
 [tool.setuptools_scm]
