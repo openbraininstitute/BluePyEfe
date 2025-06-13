@@ -26,6 +26,13 @@ from .tools import scipy_signal2d
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TIMING_MS = {
+    "ton": 250.0,
+    "tmid": 700.0,
+    "toff": 970.0,
+    "totduration": 1220.0,
+}
+
 
 class HyperDePol(Recording):
 
@@ -113,7 +120,14 @@ class HyperDePol(Recording):
         # Smooth the current
         smooth_current = scipy_signal2d(current, 85)
 
-        self.set_timing_ecode(["ton", "tmid", "toff"], config_data)
+        timing_keys = ["ton", "tmid", "toff"]
+        if any(config_data.get(key) is None for key in timing_keys):
+            logger.warning(
+                f"Missing timing key(s) for {self.protocol_name}, using defaults: {DEFAULT_TIMING_MS}"
+            )
+            for key in timing_keys:
+                config_data[key] = DEFAULT_TIMING_MS[key]
+        self.set_timing_ecode(timing_keys, config_data)
 
         hypamp_value = numpy.median(
             numpy.concatenate(

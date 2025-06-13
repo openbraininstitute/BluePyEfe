@@ -26,12 +26,21 @@ from .tools import scipy_signal2d
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TIMING_MS = {
+    "ton": 250.0,
+    "t1": 8250.0,
+    "t2": 10250.0,
+    "t3": 14250.0,
+    "t4": 16250.0,
+    "toff": 18916.0,
+}
+
 
 class PosCheops(Recording):
 
     # pylint: disable=line-too-long,anomalous-backslash-in-string
 
-    """PosCheops current stimulus
+    r"""PosCheops current stimulus
 
     .. code-block:: none
 
@@ -117,8 +126,15 @@ class PosCheops(Recording):
         # Smooth the current
         smooth_current = scipy_signal2d(current, 85)
 
-        self.set_timing_ecode(
-            ["ton", "t1", "t2", "t3", "t4", "toff"], config_data)
+        timing_keys = ["ton", "t1", "t2", "t3", "t4", "toff"]
+        if any(config_data.get(k) is None for k in timing_keys):
+            logger.warning(
+                f"Missing timing key(s) for {self.protocol_name}, using defaults: {DEFAULT_TIMING_MS}"
+            )
+            for k in timing_keys:
+                config_data[k] = DEFAULT_TIMING_MS[k]
+
+        self.set_timing_ecode(timing_keys, config_data)
 
         hypamp_value = numpy.median(smooth_current[: self.ton])
         self.set_amplitudes_ecode("hypamp", config_data, reader_data, hypamp_value)
