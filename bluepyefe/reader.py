@@ -26,7 +26,7 @@ from neo import io
 import os
 
 from . import igorpy
-from .nwbreader import BBPNWBReader, ScalaNWBReader, AIBSNWBReader
+from .nwbreader import BBPNWBReader, ScalaNWBReader, AIBSNWBReader, TRTNWBReader
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +213,8 @@ def nwb_reader(in_data):
             )
         elif "timeseries" in content["acquisition"].keys():
             reader = AIBSNWBReader(content, target_protocols)
+        elif next(iter(content["acquisition"]))[:6] == "index_":
+            reader = TRTNWBReader(content, target_protocols, in_data, repetition=None)
         else:
             reader = ScalaNWBReader(content, target_protocols, repetition=in_data.get("repetition", None))
 
