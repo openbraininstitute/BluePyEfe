@@ -41,7 +41,6 @@ class NWBReader:
         Returns:
             dict: formatted trace
         """
-
         v_array = numpy.array(
             voltage[()] * voltage.attrs["conversion"], dtype="float32"
         )
@@ -284,24 +283,16 @@ class TRTNWBReader(NWBReader):
         Returns:
             data (list of dict): list of traces
         """
-        # print("Reading TRT data")
         data = []
         # /acquisition/index_00
+        # or /acquisition/index_000
+        # or /acquisition/index_0_0_0
         for voltage_sweep_name, voltage_sweep in list(self.content["acquisition"].items()):
-            print(self.in_data["filepath"])
-            print(f"voltage sweep name  = {voltage_sweep_name}")
             parts = voltage_sweep_name.split("_")
-            print(parts)
-
-            if "sub-1912-2019-11-04-0083_icephys.nwb" in self.in_data["filepath"] or "sub-X2020-01-27-2020-01-27-0038_icephys.nwb" in self.in_data["filepath"]:
-                continue
             if len(parts) == 2:
-                if int(parts[-1])<5: # if less than 10, add 0 to the name
-                    parts[-1] = "0"+str(2*int(parts[-1])+1)
-                else:
-                    parts[-1] = str(2*int(parts[-1])+1)
+                str_size = len(parts[-1])
+                parts[-1] = str(2*int(parts[-1])+1).rjust(str_size, "0")
             else:
-                # print(len(parts),parts)
                 if parts[-1] == "0":
                     parts[-1] = "1"
                 elif parts[-1] == "1":
@@ -313,16 +304,73 @@ class TRTNWBReader(NWBReader):
 
 
             current_sweep_name = "_".join(parts)
-            print(f"current sweep name  = {current_sweep_name}")
             # /stimulus/presentation/index_01
+            # or /stimulus/presentation/index_001
+            # or /stimulus/presentation/index_0_0_1
             current_sweep = self.content["stimulus"]["presentation"][current_sweep_name]
-            print(voltage_sweep["data"])
-            print(current_sweep["data"])
+            voltage = voltage_sweep["data"]
+            current=current_sweep["data"]
+
             data.append(self._format_nwb_trace(
-                voltage=voltage_sweep["data"],
-                current=current_sweep["data"],
+                voltage=voltage,
+                current=current,
                 start_time=voltage_sweep["starting_time"],
                 trace_name=voltage_sweep_name
             ))  
                 
         return data
+
+    def _format_nwb_trace(self, voltage, current, start_time, trace_name=None, repetition=None):
+        """ Format the data from the NWB file to the format used by BluePyEfe
+
+        Args:
+            voltage (Dataset): voltage series
+            current (Dataset): current series
+            start_time (Dataset): starting time
+            trace_name (Dataset): name of the trace
+            repetition (int): repetition number
+
+        Returns:
+            dict: formatted trace
+        """
+        v_conversion = voltage.attrs["conversion"]
+        i_conversion = current.attrs["conversion"]
+        v_unit = voltage.attrs["unit"]
+        i_unit = current.attrs["unit"]
+        t_unit = start_time.attrs["unit"]
+        if not isinstance(v_unit, str):
+            v_unit = voltage.attrs["unit"].decode('UTF-8')
+            i_unit = current.attrs["unit"].decode('UTF-8')
+            t_unit = start_time.attrs["unit"].decode('UTF-8')
+
+        if (
+                v_conversion == 1e-12 and 
+                i_conversion == 0.001 and
+                v_unit == "volts" and
+                i_unit == "volts"
+            ):
+                # big mixup in units, correct it
+                v_conversion = 1e-3
+                i_conversion = 1e-12
+                i_unit = "amperes"
+
+        v_array = numpy.array(
+            voltage[()] * v_conversion, dtype="float32"
+        )
+
+        i_array = numpy.array(
+            current[()] * i_conversion, dtype="float32"
+        )
+
+        dt = 1. / float(start_time.attrs["rate"])
+
+        return {
+            "voltage": v_array,
+            "current": i_array,
+            "dt": dt,
+            "id": str(trace_name),
+            "repetition": repetition,
+            "i_unit": i_unit,
+            "v_unit": v_unit,
+            "t_unit": t_unit,
+        }
