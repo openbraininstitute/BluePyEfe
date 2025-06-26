@@ -291,7 +291,7 @@ class TRTNWBReader(NWBReader):
             parts = voltage_sweep_name.split("_")
             if len(parts) == 2:
                 str_size = len(parts[-1])
-                parts[-1] = str(2*int(parts[-1])+1).rjust(str_size, "0")
+                parts[-1] = str(2 * int(parts[-1]) + 1).rjust(str_size, "0")
             else:
                 if parts[-1] == "0":
                     parts[-1] = "1"
@@ -302,22 +302,19 @@ class TRTNWBReader(NWBReader):
                 elif parts[-1] == "3":
                     parts[-1] = "2"
 
-
             current_sweep_name = "_".join(parts)
             # /stimulus/presentation/index_01
             # or /stimulus/presentation/index_001
             # or /stimulus/presentation/index_0_0_1
             current_sweep = self.content["stimulus"]["presentation"][current_sweep_name]
-            voltage = voltage_sweep["data"]
-            current=current_sweep["data"]
 
             data.append(self._format_nwb_trace(
-                voltage=voltage,
-                current=current,
+                voltage=voltage_sweep["data"],
+                current=current_sweep["data"],
                 start_time=voltage_sweep["starting_time"],
                 trace_name=voltage_sweep_name
-            ))  
-                
+            ))
+
         return data
 
     def _format_nwb_trace(self, voltage, current, start_time, trace_name=None, repetition=None):
@@ -344,15 +341,15 @@ class TRTNWBReader(NWBReader):
             t_unit = start_time.attrs["unit"].decode('UTF-8')
 
         if (
-                v_conversion == 1e-12 and 
-                i_conversion == 0.001 and
-                v_unit == "volts" and
-                i_unit == "volts"
-            ):
-                # big mixup in units, correct it
-                v_conversion = 1e-3
-                i_conversion = 1e-12
-                i_unit = "amperes"
+            v_conversion == 1e-12 and
+            i_conversion == 0.001 and
+            v_unit == "volts" and
+            i_unit == "volts"
+        ):
+            # big mixup in units, correct it
+            v_conversion = 1e-3
+            i_conversion = 1e-12
+            i_unit = "amperes"
 
         v_array = numpy.array(
             voltage[()] * v_conversion, dtype="float32"
