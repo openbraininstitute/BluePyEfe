@@ -229,7 +229,20 @@ class SAHP(Recording):
             self.set_timing_ecode(required, config_data)
             self.compute_amp(current, config_data, reader_data)
         else:
-            self.step_detection(current, config_data, reader_data)
+            try:
+                self.step_detection(current, config_data, reader_data)
+            except ValueError:  # when numpy.argmax gets an empty sequence
+                self.tend = len(self.t) * self.dt
+                self.ton = 0
+                self.toff = self.tend
+                self.tmid = 0
+                self.tmid2 = self.tend
+                logger.warning(
+                    "The automatic step detection failed for the recording "
+                    f"{self.protocol_name} in files {self.files}. You should "
+                    "specify ton and toff by hand in your files_metadata "
+                    "for this file."
+                )
 
     def generate(self):
         """Generate the current array from the parameters of the ecode"""

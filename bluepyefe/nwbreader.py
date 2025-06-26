@@ -262,3 +262,67 @@ class BBPNWBReader(NWBReader):
                             ))
 
         return data
+
+
+class TRTNWBReader(NWBReader):
+
+    def __init__(self, content, target_protocols, in_data, repetition=None):
+        """ Init
+        Args:
+            content (h5.File): NWB file
+            target_protocols (list of str): list of the protocols to be read and returned
+            repetition (list of int): id of the repetition(s) to be read and returned
+        """
+
+        self.content = content
+        self.target_protocols = target_protocols
+        self.repetition = repetition
+        self.in_data = in_data
+
+    def read(self):
+        """ Read and format the content of the NWB file
+        Returns:
+            data (list of dict): list of traces
+        """
+        # print("Reading TRT data")
+        data = []
+        # /acquisition/index_00
+        for voltage_sweep_name, voltage_sweep in list(self.content["acquisition"].items()):
+            print(self.in_data["filepath"])
+            print(f"voltage sweep name  = {voltage_sweep_name}")
+            parts = voltage_sweep_name.split("_")
+            print(parts)
+
+            if "sub-1912-2019-11-04-0083_icephys.nwb" in self.in_data["filepath"] or "sub-X2020-01-27-2020-01-27-0038_icephys.nwb" in self.in_data["filepath"]:
+                continue
+            if len(parts) == 2:
+                if int(parts[-1])<5: # if less than 10, add 0 to the name
+                    parts[-1] = "0"+str(2*int(parts[-1])+1)
+                else:
+                    parts[-1] = str(2*int(parts[-1])+1)
+            else:
+                # print(len(parts),parts)
+                if parts[-1] == "0":
+                    parts[-1] = "1"
+                elif parts[-1] == "1":
+                    parts[-1] = "0"
+                elif parts[-1] == "2":
+                    parts[-1] = "3"
+                elif parts[-1] == "3":
+                    parts[-1] = "2"
+
+
+            current_sweep_name = "_".join(parts)
+            print(f"current sweep name  = {current_sweep_name}")
+            # /stimulus/presentation/index_01
+            current_sweep = self.content["stimulus"]["presentation"][current_sweep_name]
+            print(voltage_sweep["data"])
+            print(current_sweep["data"])
+            data.append(self._format_nwb_trace(
+                voltage=voltage_sweep["data"],
+                current=current_sweep["data"],
+                start_time=voltage_sweep["starting_time"],
+                trace_name=voltage_sweep_name
+            ))  
+                
+        return data
