@@ -205,6 +205,7 @@ def nwb_reader(in_data):
 
     with h5py.File(in_data["filepath"], "r") as content:
         if "data_organization" in content:
+            # For data from BBP / LNMC lab from EPFL
             reader = BBPNWBReader(
                 content=content,
                 target_protocols=target_protocols,
@@ -212,10 +213,16 @@ def nwb_reader(in_data):
                 repetition=in_data.get("repetition", None),
             )
         elif "timeseries" in content["acquisition"].keys():
+            # For data from the Allen Institute
             reader = AIBSNWBReader(content, target_protocols)
         elif next(iter(content["acquisition"]))[:6] == "index_":
-            reader = TRTNWBReader(content, target_protocols, in_data, repetition=None)
+            # For data from Derek Howard
+            # (An in vitro whole-cell electrophysiology dataset of human cortical neurons)
+            reader = TRTNWBReader(content, target_protocols, repetition=None)
         else:
+            # For other data, such as data used in
+            # 'Phenotypic variation of transcriptomic cell types in mouse motor cortex'
+            # by Frederico Scala et al.
             reader = ScalaNWBReader(content, target_protocols, repetition=in_data.get("repetition", None))
 
         data = reader.read()
