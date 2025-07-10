@@ -41,7 +41,6 @@ class NWBReader:
         Returns:
             dict: formatted trace
         """
-
         v_array = numpy.array(
             voltage[()] * voltage.attrs["conversion"], dtype="float32"
         )
@@ -262,3 +261,110 @@ class BBPNWBReader(NWBReader):
                             ))
 
         return data
+
+
+class TRTNWBReader(NWBReader):
+    """Read NWB files used in 'An in vitro whole-cell electrophysiology dataset of
+    human cortical neurons' by Howard, Derek et al., 2022, doi.org/10.1093/gigascience/giac108.
+    The files that can be read by this reader can be found at
+    10.48324/dandi.000293/0.220708.1652 (human), and
+    10.48324/dandi.000292/0.220708.1652 (mouse).
+    """
+
+    def read(self):
+        """ Read and format the content of the NWB file
+        Returns:
+            data (list of dict): list of traces
+        """
+        data = []
+        # possible paths in content:
+        # /acquisition/index_00
+        # or /acquisition/index_000
+        # or /acquisition/index_0_0_0
+        for voltage_sweep_name, voltage_sweep in list(self.content["acquisition"].items()):
+            parts = voltage_sweep_name.split("_")
+            if len(parts) == 2:
+                # maps 00 -> 01, 01 -> 03, ... or 000 -> 001, etc.
+                str_size = len(parts[-1])
+                parts[-1] = str(2 * int(parts[-1]) + 1).rjust(str_size, "0")
+            else:
+                # maps 0_0_0 -> 0_0_1, 0_0_1 -> 0_0_0, etc.
+                if parts[-1] == "0":
+                    parts[-1] = "1"
+                elif parts[-1] == "1":
+                    parts[-1] = "0"
+                elif parts[-1] == "2":
+                    parts[-1] = "3"
+                elif parts[-1] == "3":
+                    parts[-1] = "2"
+
+            current_sweep_name = "_".join(parts)
+            # possible paths in content:
+            # /stimulus/presentation/index_01
+            # or /stimulus/presentation/index_001
+            # or /stimulus/presentation/index_0_0_1
+            current_sweep = self.content["stimulus"]["presentation"][current_sweep_name]
+
+            data.append(self._format_nwb_trace(
+                voltage=voltage_sweep["data"],
+                current=current_sweep["data"],
+                start_time=voltage_sweep["starting_time"],
+                trace_name=voltage_sweep_name
+            ))
+
+        return data
+
+    def _format_nwb_trace(self, voltage, current, start_time, trace_name=None, repetition=None):
+        """ Format the data from the NWB file to the format used by BluePyEfe
+
+        Args:
+            voltage (Dataset): voltage series
+            current (Dataset): current series
+            start_time (Dataset): starting time
+            trace_name (Dataset): name of the trace
+            repetition (int): repetition number
+
+        Returns:
+            dict: formatted trace
+        """
+        v_conversion = voltage.attrs["conversion"]
+        i_conversion = current.attrs["conversion"]
+        v_unit = voltage.attrs["unit"]
+        i_unit = current.attrs["unit"]
+        t_unit = start_time.attrs["unit"]
+        if not isinstance(v_unit, str):
+            v_unit = voltage.attrs["unit"].decode('UTF-8')
+            i_unit = current.attrs["unit"].decode('UTF-8')
+            t_unit = start_time.attrs["unit"].decode('UTF-8')
+
+        if (
+            v_conversion == 1e-12 and
+            i_conversion == 0.001 and
+            v_unit == "volts" and
+            i_unit == "volts"
+        ):
+            # big mixup in units, correct it
+            v_conversion = 1e-3
+            i_conversion = 1e-12
+            i_unit = "amperes"
+
+        v_array = numpy.array(
+            voltage[()] * v_conversion, dtype="float32"
+        )
+
+        i_array = numpy.array(
+            current[()] * i_conversion, dtype="float32"
+        )
+
+        dt = 1. / float(start_time.attrs["rate"])
+
+        return {
+            "voltage": v_array,
+            "current": i_array,
+            "dt": dt,
+            "id": str(trace_name),
+            "repetition": repetition,
+            "i_unit": i_unit,
+            "v_unit": v_unit,
+            "t_unit": t_unit,
+        }
