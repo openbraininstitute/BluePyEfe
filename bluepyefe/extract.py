@@ -451,6 +451,17 @@ def group_efeatures(
         efel_settings=efel_settings,
     )
 
+    # Check if any protocol is missing in all cells
+    for protocol in protocols:
+        found = any(
+            cell.get_recordings_by_protocol_name(protocol.name)
+            for cell in cells
+        )
+        if not found:
+            logger.warning(
+                f"Protocol '{protocol.name}' not found in any cell recordings."
+            )
+
     for protocol in protocols:
         for cell in cells:
 
