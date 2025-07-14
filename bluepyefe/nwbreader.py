@@ -277,6 +277,16 @@ class TRTNWBReader(NWBReader):
             data (list of dict): list of traces
         """
         data = []
+
+        # Only return data if target_protocols is None or includes "step"
+        if self.target_protocols:
+            allowed = [p.lower() for p in self.target_protocols]
+            if not any(proto in allowed for proto in ["step"]):
+                logger.warning(
+                    f"TRTNWBReader only supports 'step' protocols, but requested: {self.target_protocols}. Skipping."
+                )
+                return []
+
         # possible paths in content:
         # /acquisition/index_00
         # or /acquisition/index_000
