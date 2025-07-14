@@ -451,22 +451,28 @@ def group_efeatures(
         efel_settings=efel_settings,
     )
 
-    for protocol in protocols:
-        for cell in cells:
+    missing_protocols = set()
 
+    for protocol in protocols:
+        found = False
+        for cell in cells:
             if cell.rheobase is None and not absolute_amplitude:
                 continue
+            recordings = cell.get_recordings_by_protocol_name(protocol.name)
+            if not recordings:
+                continue
+            found = True
 
-            for recording in cell.get_recordings_by_protocol_name(
-                    protocol.name
-            ):
-
-                if recording.in_target(
-                    protocol.amplitude,
-                    protocol.tolerance,
-                    absolute_amplitude
-                ):
+            for recording in recordings:
+                if recording.in_target(protocol.amplitude,
+                                       protocol.tolerance,
+                                       absolute_amplitude):
                     protocol.append(recording)
+        if not found:
+            missing_protocols.add(protocol.name)
+
+    for name in missing_protocols:
+        logger.warning(f"Protocol '{name}' not found in any cell recordings.")
 
     return protocols
 
