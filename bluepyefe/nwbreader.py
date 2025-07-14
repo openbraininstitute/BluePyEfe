@@ -281,7 +281,7 @@ class TRTNWBReader(NWBReader):
         # Only return data if target_protocols is None or includes "step"
         if self.target_protocols:
             allowed = [p.lower() for p in self.target_protocols]
-            if not any(proto in allowed for proto in ["step"]):
+            if "step" not in allowed:
                 logger.warning(
                     f"TRTNWBReader only supports 'step' protocols, but requested: {self.target_protocols}. Skipping."
                 )
