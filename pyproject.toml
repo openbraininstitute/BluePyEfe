@@ -10,14 +10,14 @@ authors = [
 description="Blue Brain Python E-feature extraction"
 readme = "README.rst"
 license = {file = "LICENSE.txt"}
-requires-python = ">= 3.9"
+requires-python = ">= 3.11"
 dynamic = ["version"]
 dependencies = [
     "numpy",
     "neo",
     "matplotlib",
     "efel",
-    "scipy<1.15",
+    "scipy>=1.16.1",
     "h5py",
     "igor2",
 ]
