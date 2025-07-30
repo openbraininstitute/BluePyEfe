@@ -41,7 +41,7 @@ For detailed citation information, please refer to the `CITATION.cff <./CITATION
 Requirements
 ============
 
-* `Python 3.9+ <https://www.python.org/downloads/release/python-380/>`_
+* `Python 3.11+ <https://www.python.org/downloads/release/python-311/>`_
 * `eFEL eFeature Extraction Library <https://github.com/openbraininstitute/eFEL>`_ (automatically installed by pip)
 * `Numpy <http://www.numpy.org>`_ (automatically installed by pip)
 * `Scipy <https://www.scipy.org/>`_ (automatically installed by pip)
