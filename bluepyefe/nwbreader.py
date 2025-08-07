@@ -378,3 +378,84 @@ class TRTNWBReader(NWBReader):
             "v_unit": v_unit,
             "t_unit": t_unit,
         }
+
+
+class VUNWBReader(NWBReader):
+
+    def __init__(self, content, target_protocols, in_data, repetition=None):
+        """ Init
+        Args:
+            content (h5.File): NWB file
+            target_protocols (list of str): list of the protocols to be read and returned
+            repetition (list of int): id of the repetition(s) to be read and returned
+        """
+
+        self.content = content
+        self.target_protocols = target_protocols
+        self.repetition = repetition
+        self.in_data = in_data
+
+    def read(self):
+        """ Read and format the content of the NWB file
+        Returns:
+            data (list of dict): list of traces
+        """
+
+        data = []
+        for sweep_name, current_sweep in list(self.content["stimulus"]["presentation"].items()):
+
+            stimulus_description = None
+            try:
+                stimulus_description = current_sweep.attrs["stimulus_description"]
+            except KeyError:
+                stimulus_description = current_sweep["stimulus_description"][()][0].decode('UTF-8')
+
+            if stimulus_description not in protocol_VU_to_BBP:
+                continue
+            translated_name = protocol_VU_to_BBP[stimulus_description]
+
+            if translated_name != self.in_data["protocol_name"]:
+                continue
+
+            voltage_sweep_name = sweep_name.replace("DA", "AD")
+
+            voltage_sweeps = self.content["acquisition"]["timeseries"] if "timeseries" in self.content["acquisition"] else self.content["acquisition"]
+
+            if voltage_sweep_name not in voltage_sweeps:
+                continue
+            data.append(self._format_nwb_trace(
+                voltage=voltage_sweeps[voltage_sweep_name]["data"],
+                current=current_sweep["data"],
+                start_time=voltage_sweeps[voltage_sweep_name]["starting_time"],
+                trace_name=sweep_name
+            ))
+
+            # Shorten protocols that finish with NaNs
+            first_nan = numpy.argmax(numpy.isnan(data[-1]["current"]))
+            if first_nan:
+                data[-1]["voltage"] = data[-1]["voltage"][:first_nan]
+                data[-1]["current"] = data[-1]["current"][:first_nan]
+
+            # Remove the protocols that finish too early
+            if "toff" in self.in_data and self.in_data["toff"] > len(data[-1]["current"]) * data[-1]["dt"] * 1000:
+                data.pop(-1)
+            else:
+                # Offset the current with the holding current
+                holding_current = float(voltage_sweeps[voltage_sweep_name]["bias_current"][()]) * 1e-12 # in pA
+                data[-1]["current"] = numpy.asarray(data[-1]["current"]) + holding_current
+
+            # if Step, IV or IDRest protocol, replace the first 100ms and replace the 0-100ms with value at 100ms in current
+            # other portocols have start time ~50 e.g. X2LP_Search_DA_0. So, using 40 ms instead of 100 ms
+            # if stimulus_description == "CCSteps_DA_0":
+            if any(stimulus_description in s for s in ["CCSteps_DA_0", "X1PS_SubThresh_DA_0", "X4PS_SupraThresh_DA_0"]):
+                print(sweep_name,data[-1]["dt"])
+                if int(0.090 / data[-1]["dt"]) < len(data[-1]["current"]):
+                    data[-1]["current"][0:int(0.090 / data[-1]["dt"])] = data[-1]["current"][int(0.090 / data[-1]["dt"])]
+                    data[-1]["voltage"][0:int(0.090 / data[-1]["dt"])] = data[-1]["voltage"][int(0.090 / data[-1]["dt"])]
+                else:
+                    # Handle the case when the index is out of bounds
+                    # You can choose to raise an exception, set a default value, or handle it in a different way
+                    logger.info(f"For {stimulus_description}, unable to replace 0-40 ms value with the one at 40th ms as current/voltage array is too short")
+                    continue
+
+        return data
