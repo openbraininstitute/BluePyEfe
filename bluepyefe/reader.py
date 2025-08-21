@@ -215,7 +215,7 @@ def nwb_reader(in_data):
         elif "timeseries" in content["acquisition"].keys():
             # For data from the Allen Institute
             reader = AIBSNWBReader(content, target_protocols)
-        elif next(iter(content["acquisition"]))[:6] == "index_":
+        elif next(iter(content["acquisition"]))[:6].lower() == "index_":
             # For data from Derek Howard
             # (An in vitro whole-cell electrophysiology dataset of human cortical neurons)
             reader = TRTNWBReader(content, target_protocols, repetition=None)
