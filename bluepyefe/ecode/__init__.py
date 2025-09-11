@@ -24,6 +24,8 @@ from . import ramp
 from . import sAHP
 from . import sineSpec
 from . import step
+from . import General
+from . import vclamp
 
 # The ecode names have to be lower case only to avoid having to
 # define duplicates for upper and lower cases.
@@ -63,4 +65,25 @@ eCodes = {
     "poscheops": posCheops.PosCheops,
     "spikerec": SpikeRec.SpikeRec,
     "sinespec": sineSpec.SineSpec,
+    "calou01": General.General,
+    "calou04": General.General,
+    "eleccal": General.General,
+    "h10s8": SpikeRec.SpikeRec,
+    "h20s8": SpikeRec.SpikeRec,
+    "looffset": step.Step,
+    "ou10": General.General,
+    "rpip": vclamp.VClampStep,
+    "rsealclose": vclamp.VClampStep,
+    "rsealopen": vclamp.VClampStep,
+    "rac": step.Step,
+    "resetitc": step.Step,
+    "rin": step.Step,
+    "s2protocol": vclamp.VClampStep,
+    "s30": step.Step,
+    "setampl": step.Step,
+    "setisi": step.Step,
+    "testampl": step.Step,
+    "testrheo": step.Step,
+    "pulser": step.Step,
+    "spuls": SpikeRec.SpikeRec
 }
