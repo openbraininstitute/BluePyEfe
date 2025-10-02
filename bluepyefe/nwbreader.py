@@ -3,6 +3,13 @@ import numpy
 
 logger = logging.getLogger(__name__)
 
+PROTOCOL_VU_TO_BBP = {
+    "X1PS_SubThresh_DA_0": "IV",
+    "X2LP_Search_DA_0": "IDthresh",
+    "X4PS_SupraThresh_DA_0": "IDrest",
+    "CCSteps_DA_0": "Step"
+}
+
 
 class NWBReader:
     def __init__(self, content, target_protocols, repetition=None, v_file=None):
@@ -410,9 +417,9 @@ class VUNWBReader(NWBReader):
             except KeyError:
                 stimulus_description = current_sweep["stimulus_description"][()][0].decode('UTF-8')
 
-            if stimulus_description not in protocol_VU_to_BBP:
+            if stimulus_description not in PROTOCOL_VU_TO_BBP:
                 continue
-            translated_name = protocol_VU_to_BBP[stimulus_description]
+            translated_name = PROTOCOL_VU_TO_BBP[stimulus_description]
 
             if translated_name != self.in_data["protocol_name"]:
                 continue
@@ -441,14 +448,13 @@ class VUNWBReader(NWBReader):
                 data.pop(-1)
             else:
                 # Offset the current with the holding current
-                holding_current = float(voltage_sweeps[voltage_sweep_name]["bias_current"][()]) * 1e-12 # in pA
+                holding_current = float(voltage_sweeps[voltage_sweep_name]["bias_current"][()]) * 1e-12  # in pA
                 data[-1]["current"] = numpy.asarray(data[-1]["current"]) + holding_current
 
             # if Step, IV or IDRest protocol, replace the first 100ms and replace the 0-100ms with value at 100ms in current
             # other portocols have start time ~50 e.g. X2LP_Search_DA_0. So, using 40 ms instead of 100 ms
             # if stimulus_description == "CCSteps_DA_0":
             if any(stimulus_description in s for s in ["CCSteps_DA_0", "X1PS_SubThresh_DA_0", "X4PS_SupraThresh_DA_0"]):
-                print(sweep_name,data[-1]["dt"])
                 if int(0.090 / data[-1]["dt"]) < len(data[-1]["current"]):
                     data[-1]["current"][0:int(0.090 / data[-1]["dt"])] = data[-1]["current"][int(0.090 / data[-1]["dt"])]
                     data[-1]["voltage"][0:int(0.090 / data[-1]["dt"])] = data[-1]["voltage"][int(0.090 / data[-1]["dt"])]
