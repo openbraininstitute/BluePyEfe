@@ -132,7 +132,7 @@ class ScalaNWBReader(NWBReader):
                 logger.warning(f'Could not find "stimulus_description" attribute for {sweep}, Setting it as "Step"')
                 protocol_name = "Step"
 
-            if ("na" == protocol_name.lower()) or ("step" in protocol_name.lower()):
+            if ("na" == protocol_name.lower()) or ("step" in protocol_name.lower() and "genericstep" != protocol_name.lower()):
                 protocol_name = "Step"
 
             if (
@@ -285,19 +285,20 @@ class TRTNWBReader(NWBReader):
         """
         data = []
 
-        # Only return data if target_protocols is None or includes "step"
+        # Only return data if target_protocols is None or includes "step" or "genericstep"
         if self.target_protocols:
             allowed = [p.lower() for p in self.target_protocols]
-            if "step" not in allowed:
+            if "step" not in allowed and "genericstep" not in allowed:
                 logger.warning(
-                    f"TRTNWBReader only supports 'step' protocols, but requested: {self.target_protocols}. Skipping."
+                    "TRTNWBReader only supports 'step' and 'genericstep' protocols, "
+                    f"but requested: {self.target_protocols}. Skipping."
                 )
                 return []
 
         # possible paths in content:
         # /acquisition/index_00
         # or /acquisition/index_000
-        # or /acquisition/index_0_0_0
+        # or /acquisition/Index_0_0_0
         for voltage_sweep_name, voltage_sweep in list(self.content["acquisition"].items()):
             parts = voltage_sweep_name.split("_")
             if len(parts) == 2:
@@ -319,7 +320,7 @@ class TRTNWBReader(NWBReader):
             # possible paths in content:
             # /stimulus/presentation/index_01
             # or /stimulus/presentation/index_001
-            # or /stimulus/presentation/index_0_0_1
+            # or /stimulus/presentation/Index_0_0_1
             current_sweep = self.content["stimulus"]["presentation"][current_sweep_name]
 
             data.append(self._format_nwb_trace(
