@@ -250,6 +250,7 @@ def nwb_reader(in_data):
 
     return data
 
+
 def csv_lccr_reader(in_data):
     """Reader to read .txt (csv_lccr)
 
