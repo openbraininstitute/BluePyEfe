@@ -26,7 +26,7 @@ from neo import io
 import os
 
 from . import igorpy
-from .nwbreader import BBPNWBReader, ScalaNWBReader, AIBSNWBReader, TRTNWBReader
+from .nwbreader import BBPNWBReader, ScalaNWBReader, AIBSNWBReader, TRTNWBReader, VUNWBReader
 
 logger = logging.getLogger(__name__)
 
@@ -212,18 +212,39 @@ def nwb_reader(in_data):
                 v_file=in_data.get("v_file", None),
                 repetition=in_data.get("repetition", None),
             )
+
+        elif in_data.get("protocol_name") and any(
+            (name.endswith("DA") or "DA" in name) and
+            (
+                name.replace("DA", "AD")
+                in (content["acquisition"].get("timeseries", content["acquisition"]))
+            )
+            for name in content.get("stimulus", {}).get("presentation", {}).keys()
+        ):
+            # For VU data (DA/AD paired sweeps); requires protocol_name
+            reader = VUNWBReader(
+                content=content,
+                target_protocols=target_protocols,
+                in_data=in_data,
+                repetition=in_data.get("repetition", None),
+            )
+
         elif "timeseries" in content["acquisition"].keys():
             # For data from the Allen Institute
             reader = AIBSNWBReader(content, target_protocols)
+
         elif next(iter(content["acquisition"]))[:6].lower() == "index_":
             # For data from Derek Howard
             # (An in vitro whole-cell electrophysiology dataset of human cortical neurons)
             reader = TRTNWBReader(content, target_protocols, repetition=None)
+
         else:
             # For other data, such as data used in
             # 'Phenotypic variation of transcriptomic cell types in mouse motor cortex'
             # by Frederico Scala et al.
-            reader = ScalaNWBReader(content, target_protocols, repetition=in_data.get("repetition", None))
+            reader = ScalaNWBReader(
+                content, target_protocols, repetition=in_data.get("repetition", None)
+            )
 
         data = reader.read()
 
