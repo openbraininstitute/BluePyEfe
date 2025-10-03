@@ -452,8 +452,7 @@ class VUNWBReader(NWBReader):
                 holding_current = float(voltage_sweeps[voltage_sweep_name]["bias_current"][()]) * 1e-12  # in pA
                 data[-1]["current"] = numpy.asarray(data[-1]["current"]) + holding_current
 
-            # if Step, IV or IDRest protocol, replace the first 100ms and replace the 0-100ms with value at 100ms in current
-            # other portocols have start time ~50 e.g. X2LP_Search_DA_0. So, using 40 ms instead of 100 ms
+            # For Step, IV and IDRest protocols, replace the first 90 ms with the value at 90 ms
             # if stimulus_description == "CCSteps_DA_0":
             if any(stimulus_description in s for s in ["CCSteps_DA_0", "X1PS_SubThresh_DA_0", "X4PS_SupraThresh_DA_0"]):
                 if int(0.090 / data[-1]["dt"]) < len(data[-1]["current"]):
