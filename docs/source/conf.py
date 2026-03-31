@@ -15,7 +15,7 @@ import sys
 import os
 import bluepyefe
 
-from pkg_resources import get_distribution
+from importlib.metadata import version as get_version
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -59,7 +59,7 @@ project = u'BluePyEfe'
 #
 
 # The short X.Y version.
-version = get_distribution("bluepyefe").version
+version = get_version("bluepyefe")
 # The full version, including alpha/beta/rc tags.
 release = version
 
