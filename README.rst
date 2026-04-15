@@ -96,7 +96,7 @@ This work has been partially funded by the European Union Seventh Framework Prog
 
 Copyright (c) 2016-2024 Blue Brain Project/EPFL
 
-Copyright (c) 2025 Open Brain Institute
+Copyright (c) 2025-2026 Open Brain Institute
 
 .. |pypi| image:: https://img.shields.io/pypi/v/bluepyefe.svg
                :target: https://pypi.org/project/bluepyefe/
