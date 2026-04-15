@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "bluepyefe"
 authors = [
-    {name = "Open Brain Institute", email = "support@openbraininstitute.org"},
+    {name = "Open Brain Institute", email = "obi.administrator@openbraininstitute.org"},
 ]
 description="Blue Brain Python E-feature extraction"
 readme = "README.rst"
