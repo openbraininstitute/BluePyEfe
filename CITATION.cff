@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "BluePyEfe"
-doi: 10.5281/zenodo.3728191
-url: https://doi.org/10.5281/zenodo.3728191
+doi: 10.5281/zenodo.19591682
+url: https://doi.org/10.5281/zenodo.19591682
 abstract: "BluePyEfe aims at easing the process of reading experimental recordings and extracting batches of electrical features from these recordings. To do so, it combines trace reading functions and features extraction functions from the eFel library. BluePyEfe outputs protocols and features files in the format used by BluePyOpt for neuron electrical model building."
 authors:
   - family-names: "Rössert"
