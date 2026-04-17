@@ -116,8 +116,8 @@ Copyright (c) 2025-2026 Open Brain Institute
 .. |gitter| image:: https://badges.gitter.im/Join%20Chat.svg
                  :target: https://gitter.im/openbraininstitute/bluepyefe
                  :alt: gitter
-.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3728191.svg
-                 :target: https://doi.org/10.5281/zenodo.3728191
+.. |zenodo| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.19591682.svg
+                 :target: https://doi.org/10.5281/zenodo.19591682
                  :alt: DOI
 
 ..
