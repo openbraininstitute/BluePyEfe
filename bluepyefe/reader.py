@@ -33,6 +33,7 @@ from .nwbreader import (
     AIBSNWBReader,
     TRTNWBReader,
     VUNWBReader,
+    _normalize_scala_protocol_name,
 )
 
 logger = logging.getLogger(__name__)
@@ -258,15 +259,6 @@ def _create_nwb_reader(reader_class, content, target_protocols, in_data):
     if reader_class is TRTNWBReader:
         return reader_class(content, target_protocols, repetition=None)
     return reader_class(content, target_protocols, repetition=in_data.get("repetition", None))
-
-
-def _normalize_scala_protocol_name(protocol_name):
-    """Normalize protocol labels using the Scala reader rules."""
-    if protocol_name.lower() == "na" or (
-        "step" in protocol_name.lower() and protocol_name.lower() != "genericstep"
-    ):
-        return "Step"
-    return protocol_name
 
 
 def _get_nwb_protocols(content, reader_class):

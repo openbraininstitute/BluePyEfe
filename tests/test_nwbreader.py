@@ -271,6 +271,30 @@ def test_scala_nwbreader_filters_protocol():
     assert out == []
 
 
+def test_scala_nwbreader_decodes_bytes_protocol():
+    content = make_scala_content(protocol=b"GenericStep")
+    reader = ScalaNWBReader(content, target_protocols=["GenericStep"])
+
+    assert len(reader.read()) == 1
+
+
+def test_scala_nwbreader_normalizes_na_protocol():
+    content = make_scala_content(protocol="NA")
+    reader = ScalaNWBReader(content, target_protocols=["Step"])
+
+    assert len(reader.read()) == 1
+    assert _get_nwb_protocols(content, ScalaNWBReader) == ["Step"]
+
+
+def test_scala_nwbreader_defaults_missing_protocol_to_step():
+    content = make_scala_content()
+    content["acquisition"]["VoltageSeries_0001"].attrs = {}
+    reader = ScalaNWBReader(content, target_protocols=["Step"])
+
+    assert len(reader.read()) == 1
+    assert _get_nwb_protocols(content, ScalaNWBReader) == ["Step"]
+
+
 def test_nwb_inspection_detects_scala_layout():
     content = make_scala_content(protocol="GenericStep")
     reader_class = _get_nwb_reader_class(content)

@@ -11,6 +11,18 @@ PROTOCOL_VU_TO_BBP = {
 }
 
 
+def _normalize_scala_protocol_name(protocol_name):
+    """Normalize protocol labels using the Scala reader rules."""
+    if isinstance(protocol_name, bytes):
+        protocol_name = protocol_name.decode("UTF-8")
+    protocol_name_lower = protocol_name.lower()
+    if protocol_name_lower == "na" or (
+        "step" in protocol_name_lower and protocol_name_lower != "genericstep"
+    ):
+        return "Step"
+    return protocol_name
+
+
 class NWBReader:
     def __init__(self, content, target_protocols, repetition=None, v_file=None):
         """ Init
@@ -132,8 +144,7 @@ class ScalaNWBReader(NWBReader):
                 logger.warning(f'Could not find "stimulus_description" attribute for {sweep}, Setting it as "Step"')
                 protocol_name = "Step"
 
-            if ("na" == protocol_name.lower()) or ("step" in protocol_name.lower() and "genericstep" != protocol_name.lower()):
-                protocol_name = "Step"
+            protocol_name = _normalize_scala_protocol_name(protocol_name)
 
             if (
                 self.target_protocols and
