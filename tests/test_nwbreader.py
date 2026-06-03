@@ -1,10 +1,17 @@
 """bluepyefe.nwbreader tests"""
+import json
 import unittest
 from pathlib import Path
 import numpy as np
 import pytest
 
-from bluepyefe.reader import nwb_reader
+from bluepyefe.reader import (
+    NWBInspectionError,
+    _get_nwb_protocols,
+    _get_nwb_reader_class,
+    inspect_nwb,
+    nwb_reader,
+)
 from bluepyefe.nwbreader import (
     NWBReader, AIBSNWBReader, ScalaNWBReader, BBPNWBReader, TRTNWBReader, VUNWBReader
 )
@@ -59,6 +66,44 @@ class TestNWBReaders(unittest.TestCase):
             self.assertIn('i_unit', entry)
             self.assertIn('v_unit', entry)
             self.assertIn('t_unit', entry)
+
+
+def test_inspect_nwb_discovers_bbp_protocols_and_metadata():
+    result = inspect_nwb('./tests/exp_data/hippocampus-portal/99111002.nwb')
+
+    assert result["reader"] == "BBPNWBReader"
+    assert result["protocols"] == ["Step"]
+    assert len(result["traces"]) == 16
+    assert result["metadata"]["nwb_version"] == "2.4.0"
+    assert result["metadata"]["identifier"] == "99111002"
+    assert result["metadata"]["session_description"] == "UCL"
+    json.dumps(result["metadata"])
+
+
+def test_inspect_nwb_filters_protocols():
+    result = inspect_nwb(
+        './tests/exp_data/hippocampus-portal/99111002.nwb',
+        protocol_names=["Step"],
+    )
+
+    assert len(result["traces"]) == 16
+
+
+def test_inspect_nwb_raises_for_missing_protocol():
+    with pytest.raises(NWBInspectionError, match="could not parse any traces"):
+        inspect_nwb(
+            './tests/exp_data/hippocampus-portal/99111002.nwb',
+            protocol_names=["Missing"],
+        )
+
+
+def test_inspect_nwb_raises_for_invalid_file(tmp_path):
+    filepath = tmp_path / "invalid.nwb"
+    filepath.write_text("not an NWB file")
+
+    with pytest.raises(NWBInspectionError, match="Unable to inspect NWB file"):
+        inspect_nwb(filepath)
+
 
 @pytest.fixture
 def dummy_voltage():
@@ -122,7 +167,16 @@ def test_aibs_nwbreader_read(dummy_content):
     assert "voltage" in data[0]
     assert "current" in data[0]
 
-def make_vu_content_for_step(bias_pA=0.0, with_nans=False):
+
+def test_nwb_inspection_detects_aibs_layout(dummy_content):
+    reader_class = _get_nwb_reader_class(dummy_content)
+
+    assert reader_class is AIBSNWBReader
+    assert _get_nwb_protocols(dummy_content, reader_class) == ["Step"]
+
+def make_vu_content_for_step(
+    bias_pA=0.0, with_nans=False, stimulus_description_in_attrs=True
+):
     # Voltage/data
     voltage_ds = DummyDS(
         [1, 2, 3, 4],
@@ -134,14 +188,18 @@ def make_vu_content_for_step(bias_pA=0.0, with_nans=False):
         current_vals[-1] = np.nan
     current_ds = DummyDS(current_vals, {"conversion": 1.0, "unit": "pA"})
     start_time_ds = DummyDS([0.0], {"rate": 10000, "unit": "s"})
+    sweep_children = {"data": current_ds}
+    sweep_attrs = {}
+    if stimulus_description_in_attrs:
+        sweep_attrs["stimulus_description"] = "CCSteps_DA_0"
+    else:
+        sweep_children["stimulus_description"] = DummyDS([b"CCSteps_DA_0"], {})
+
     # Group layout
     content = {
         "stimulus": {
             "presentation": {
-                "sweepDA": DummyGroup(
-                    {"data": current_ds},
-                    attrs={"stimulus_description": "CCSteps_DA_0"},
-                ),
+                "sweepDA": DummyGroup(sweep_children, attrs=sweep_attrs),
             }
         },
         "acquisition": {
@@ -150,7 +208,7 @@ def make_vu_content_for_step(bias_pA=0.0, with_nans=False):
                     {
                         "data": voltage_ds,
                         "starting_time": start_time_ds,
-                        "bias_current": DummyDS([bias_pA * 1e-12], {}),  # stored in A, code multiplies by 1e12 to pA
+                        "bias_current": DummyDS(bias_pA * 1e-12, {}),
                     },
                     attrs={},
                 ),
@@ -166,6 +224,35 @@ def test_vunwbreader_protocol_filter_excludes_non_matching():
     reader = VUNWBReader(content, target_protocols=["IV"], in_data=in_data)
     traces = reader.read()
     assert traces == []
+
+
+def test_vunwbreader_accepts_protocol_list():
+    content = make_vu_content_for_step()
+    in_data = {"protocol_name": ["IV", "Step"]}
+    reader = VUNWBReader(content, target_protocols=["IV", "Step"], in_data=in_data)
+
+    assert len(reader.read()) == 1
+
+
+def test_nwb_inspection_detects_vu_layout():
+    content = make_vu_content_for_step()
+    reader_class = _get_nwb_reader_class(content)
+
+    assert reader_class is VUNWBReader
+    assert _get_nwb_protocols(content, reader_class) == ["Step"]
+
+
+def test_nwb_inspection_reads_vu_protocol_from_dataset():
+    content = make_vu_content_for_step(stimulus_description_in_attrs=False)
+    reader = VUNWBReader(
+        content,
+        target_protocols=["Step"],
+        in_data={"protocol_name": "Step"},
+    )
+
+    assert _get_nwb_protocols(content, VUNWBReader) == ["Step"]
+    assert len(reader.read()) == 1
+
 
 def make_scala_content(protocol="Step", repetition=None):
     acq = {}
@@ -209,6 +296,38 @@ def test_scala_nwbreader_filters_protocol():
     reader = ScalaNWBReader(content, target_protocols=["Step"])
     out = reader.read()
     assert out == []
+
+
+def test_scala_nwbreader_decodes_bytes_protocol():
+    content = make_scala_content(protocol=b"GenericStep")
+    reader = ScalaNWBReader(content, target_protocols=["GenericStep"])
+
+    assert len(reader.read()) == 1
+
+
+def test_scala_nwbreader_normalizes_na_protocol():
+    content = make_scala_content(protocol="NA")
+    reader = ScalaNWBReader(content, target_protocols=["Step"])
+
+    assert len(reader.read()) == 1
+    assert _get_nwb_protocols(content, ScalaNWBReader) == ["Step"]
+
+
+def test_scala_nwbreader_defaults_missing_protocol_to_step():
+    content = make_scala_content()
+    content["acquisition"]["VoltageSeries_0001"].attrs = {}
+    reader = ScalaNWBReader(content, target_protocols=["Step"])
+
+    assert len(reader.read()) == 1
+    assert _get_nwb_protocols(content, ScalaNWBReader) == ["Step"]
+
+
+def test_nwb_inspection_detects_scala_layout():
+    content = make_scala_content(protocol="GenericStep")
+    reader_class = _get_nwb_reader_class(content)
+
+    assert reader_class is ScalaNWBReader
+    assert _get_nwb_protocols(content, reader_class) == ["GenericStep"]
 
 def make_bbp_content(ecode="Step", reps=(1,)):
     # data_organization -> per cell -> ecode -> "repetition X" -> sweep -> traces
@@ -290,3 +409,11 @@ def test_trt_reader_corrects_units():
     assert tr["dt"] == 0.0001
     assert len(tr["voltage"]) == 4
     assert len(tr["current"]) == 4
+
+
+def test_nwb_inspection_detects_trt_layout():
+    content = make_trt_content_misaligned_units()
+    reader_class = _get_nwb_reader_class(content)
+
+    assert reader_class is TRTNWBReader
+    assert _get_nwb_protocols(content, reader_class) == ["Step"]

@@ -11,6 +11,18 @@ PROTOCOL_VU_TO_BBP = {
 }
 
 
+def _normalize_scala_protocol_name(protocol_name):
+    """Normalize protocol labels using the Scala reader rules."""
+    if isinstance(protocol_name, bytes):
+        protocol_name = protocol_name.decode("UTF-8")
+    protocol_name_lower = protocol_name.lower()
+    if protocol_name_lower == "na" or (
+        "step" in protocol_name_lower and protocol_name_lower != "genericstep"
+    ):
+        return "Step"
+    return protocol_name
+
+
 class NWBReader:
     def __init__(self, content, target_protocols, repetition=None, v_file=None):
         """ Init
@@ -132,8 +144,7 @@ class ScalaNWBReader(NWBReader):
                 logger.warning(f'Could not find "stimulus_description" attribute for {sweep}, Setting it as "Step"')
                 protocol_name = "Step"
 
-            if ("na" == protocol_name.lower()) or ("step" in protocol_name.lower() and "genericstep" != protocol_name.lower()):
-                protocol_name = "Step"
+            protocol_name = _normalize_scala_protocol_name(protocol_name)
 
             if (
                 self.target_protocols and
@@ -403,6 +414,12 @@ class VUNWBReader(NWBReader):
         self.repetition = repetition
         self.in_data = in_data
 
+    def _get_target_protocols(self):
+        target_protocols = self.in_data.get("protocol_name", self.target_protocols)
+        if isinstance(target_protocols, str):
+            return [target_protocols]
+        return target_protocols
+
     def read(self):
         """ Read and format the content of the NWB file
         Returns:
@@ -410,6 +427,7 @@ class VUNWBReader(NWBReader):
         """
 
         data = []
+        target_protocols = self._get_target_protocols()
         for sweep_name, current_sweep in list(self.content["stimulus"]["presentation"].items()):
 
             stimulus_description = None
@@ -422,7 +440,7 @@ class VUNWBReader(NWBReader):
                 continue
             translated_name = PROTOCOL_VU_TO_BBP[stimulus_description]
 
-            if translated_name != self.in_data["protocol_name"]:
+            if translated_name not in target_protocols:
                 continue
 
             voltage_sweep_name = sweep_name.replace("DA", "AD")

@@ -26,9 +26,21 @@ from neo import io
 import os
 
 from . import igorpy
-from .nwbreader import BBPNWBReader, ScalaNWBReader, AIBSNWBReader, TRTNWBReader, VUNWBReader
+from .nwbreader import (
+    PROTOCOL_VU_TO_BBP,
+    BBPNWBReader,
+    ScalaNWBReader,
+    AIBSNWBReader,
+    TRTNWBReader,
+    VUNWBReader,
+    _normalize_scala_protocol_name,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class NWBInspectionError(RuntimeError):
+    """Raised when an NWB file cannot be inspected by a supported reader."""
 
 
 def _check_metadata(metadata, reader_name, required_entries=[]):
@@ -178,6 +190,172 @@ def read_matlab(in_data):
     return data
 
 
+def _decode_nwb_value(value):
+    """Convert NWB metadata values to plain Python objects."""
+    if isinstance(value, bytes):
+        return value.decode("UTF-8")
+    if isinstance(value, h5py.Reference):
+        return str(value)
+    if isinstance(value, numpy.ndarray):
+        if value.ndim == 0:
+            return _decode_nwb_value(value.item())
+        return [_decode_nwb_value(item) for item in value.tolist()]
+    if isinstance(value, numpy.generic):
+        return _decode_nwb_value(value.item())
+    return value
+
+
+def _unique(values):
+    """Return values in their original order without duplicates."""
+    return list(dict.fromkeys(values))
+
+
+def _get_vu_stimulus_description(current_sweep):
+    """Return the VU protocol description from either supported NWB location."""
+    try:
+        return _decode_nwb_value(current_sweep.attrs["stimulus_description"])
+    except KeyError:
+        return _decode_nwb_value(current_sweep["stimulus_description"][()][0])
+
+
+def _is_vu_nwb(content):
+    """Return whether content looks like a VU NWB file.
+
+    VU sweep names use DA/AD channel markers:
+    - DA: digital-to-analog output channel for the commanded stimulus.
+    - AD: analog-to-digital input channel for the recorded response.
+
+    A stimulus sweep under /stimulus/presentation with "DA" in its name
+    should have a corresponding acquisition sweep with "DA" replaced by "AD".
+    """
+    voltage_sweeps = content["acquisition"].get("timeseries", content["acquisition"])
+    for current_sweep_name in content.get("stimulus", {}).get("presentation", {}):
+        if "DA" not in current_sweep_name:
+            continue
+        if current_sweep_name.replace("DA", "AD") in voltage_sweeps:
+            return True
+    return False
+
+
+def _get_nwb_reader_class(content):
+    """Select the NWB reader class from the NWB file layout."""
+    if "data_organization" in content:
+        return BBPNWBReader
+    if _is_vu_nwb(content):
+        return VUNWBReader
+    if "timeseries" in content["acquisition"].keys():
+        return AIBSNWBReader
+    if next(iter(content["acquisition"]), "")[:6].lower() == "index_":
+        return TRTNWBReader
+    return ScalaNWBReader
+
+
+def _create_nwb_reader(reader_class, content, target_protocols, in_data):
+    """Create an NWB reader while preserving reader-specific arguments."""
+    if reader_class is BBPNWBReader:
+        return reader_class(
+            content=content,
+            target_protocols=target_protocols,
+            v_file=in_data.get("v_file", None),
+            repetition=in_data.get("repetition", None),
+        )
+    if reader_class is VUNWBReader:
+        return reader_class(
+            content=content,
+            target_protocols=target_protocols,
+            in_data=in_data,
+            repetition=in_data.get("repetition", None),
+        )
+    if reader_class is TRTNWBReader:
+        return reader_class(content, target_protocols, repetition=None)
+    if reader_class is AIBSNWBReader:
+        return reader_class(content, target_protocols)
+    return reader_class(content, target_protocols, repetition=in_data.get("repetition", None))
+
+
+def _get_nwb_protocols(content, reader_class):
+    """Return protocols exposed by an opened NWB file."""
+    if reader_class is BBPNWBReader:
+        return _unique(
+            protocol
+            for cell in content["data_organization"].values()
+            for protocol in cell.keys()
+        )
+    if reader_class is VUNWBReader:
+        return _unique(
+            PROTOCOL_VU_TO_BBP[description]
+            for current_sweep in content["stimulus"]["presentation"].values()
+            if (description := _get_vu_stimulus_description(current_sweep))
+            in PROTOCOL_VU_TO_BBP
+        )
+    if reader_class is AIBSNWBReader:
+        return _unique(
+            _decode_nwb_value(sweep["aibs_stimulus_name"][()])
+            for sweep in content["acquisition"]["timeseries"].values()
+        )
+    if reader_class is TRTNWBReader:
+        return ["Step"]
+    return _unique(
+        _normalize_scala_protocol_name(
+            _decode_nwb_value(sweep.attrs.get("stimulus_description", "Step"))
+        )
+        for sweep in content["acquisition"].values()
+    )
+
+
+def _get_nwb_metadata(content):
+    """Return lightweight file-level metadata from an opened NWB file."""
+    metadata = {
+        key: _decode_nwb_value(value)
+        for key, value in content.attrs.items()
+    }
+    for key in (
+        "identifier",
+        "session_description",
+        "session_start_time",
+        "file_create_date",
+        "timestamps_reference_time",
+    ):
+        if key in content:
+            metadata[key] = _decode_nwb_value(content[key][()])
+    return metadata
+
+
+def inspect_nwb(filepath, protocol_names=None, repetition=None, v_file=None):
+    """Inspect an NWB file and return its reader, protocols, traces, and metadata."""
+    try:
+        with h5py.File(filepath, "r") as content:
+            reader_class = _get_nwb_reader_class(content)
+            protocols = _get_nwb_protocols(content, reader_class)
+            target_protocols = protocol_names or protocols
+            if isinstance(target_protocols, str):
+                target_protocols = [target_protocols]
+
+            in_data = {
+                "filepath": filepath,
+                "protocol_name": target_protocols,
+                "repetition": repetition,
+                "v_file": v_file,
+            }
+            reader = _create_nwb_reader(reader_class, content, target_protocols, in_data)
+            traces = reader.read()
+
+            if not traces:
+                raise NWBInspectionError(
+                    f"{reader_class.__name__} could not parse any traces from the NWB file."
+                )
+            return {
+                "reader": reader_class.__name__,
+                "protocols": protocols,
+                "traces": traces,
+                "metadata": _get_nwb_metadata(content),
+            }
+    except NWBInspectionError:
+        raise
+    except (KeyError, OSError, TypeError, ValueError) as exc:
+        raise NWBInspectionError(f"Unable to inspect NWB file: {exc}") from exc
+
+
 def nwb_reader(in_data):
     """Reader for .nwb
 
@@ -204,48 +382,8 @@ def nwb_reader(in_data):
         target_protocols = [target_protocols]
 
     with h5py.File(in_data["filepath"], "r") as content:
-        if "data_organization" in content:
-            # For data from BBP / LNMC lab from EPFL
-            reader = BBPNWBReader(
-                content=content,
-                target_protocols=target_protocols,
-                v_file=in_data.get("v_file", None),
-                repetition=in_data.get("repetition", None),
-            )
-
-        elif in_data.get("protocol_name") and any(
-            (name.endswith("DA") or "DA" in name) and
-            (
-                name.replace("DA", "AD")
-                in (content["acquisition"].get("timeseries", content["acquisition"]))
-            )
-            for name in content.get("stimulus", {}).get("presentation", {}).keys()
-        ):
-            # For VU data (DA/AD paired sweeps); requires protocol_name
-            reader = VUNWBReader(
-                content=content,
-                target_protocols=target_protocols,
-                in_data=in_data,
-                repetition=in_data.get("repetition", None),
-            )
-
-        elif "timeseries" in content["acquisition"].keys():
-            # For data from the Allen Institute
-            reader = AIBSNWBReader(content, target_protocols)
-
-        elif next(iter(content["acquisition"]))[:6].lower() == "index_":
-            # For data from Derek Howard
-            # (An in vitro whole-cell electrophysiology dataset of human cortical neurons)
-            reader = TRTNWBReader(content, target_protocols, repetition=None)
-
-        else:
-            # For other data, such as data used in
-            # 'Phenotypic variation of transcriptomic cell types in mouse motor cortex'
-            # by Frederico Scala et al.
-            reader = ScalaNWBReader(
-                content, target_protocols, repetition=in_data.get("repetition", None)
-            )
-
+        reader_class = _get_nwb_reader_class(content)
+        reader = _create_nwb_reader(reader_class, content, target_protocols, in_data)
         data = reader.read()
 
     return data
