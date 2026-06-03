@@ -174,7 +174,9 @@ def test_nwb_inspection_detects_aibs_layout(dummy_content):
     assert reader_class is AIBSNWBReader
     assert _get_nwb_protocols(dummy_content, reader_class) == ["Step"]
 
-def make_vu_content_for_step(bias_pA=0.0, with_nans=False):
+def make_vu_content_for_step(
+    bias_pA=0.0, with_nans=False, stimulus_description_in_attrs=True
+):
     # Voltage/data
     voltage_ds = DummyDS(
         [1, 2, 3, 4],
@@ -186,14 +188,18 @@ def make_vu_content_for_step(bias_pA=0.0, with_nans=False):
         current_vals[-1] = np.nan
     current_ds = DummyDS(current_vals, {"conversion": 1.0, "unit": "pA"})
     start_time_ds = DummyDS([0.0], {"rate": 10000, "unit": "s"})
+    sweep_children = {"data": current_ds}
+    sweep_attrs = {}
+    if stimulus_description_in_attrs:
+        sweep_attrs["stimulus_description"] = "CCSteps_DA_0"
+    else:
+        sweep_children["stimulus_description"] = DummyDS([b"CCSteps_DA_0"], {})
+
     # Group layout
     content = {
         "stimulus": {
             "presentation": {
-                "sweepDA": DummyGroup(
-                    {"data": current_ds},
-                    attrs={"stimulus_description": "CCSteps_DA_0"},
-                ),
+                "sweepDA": DummyGroup(sweep_children, attrs=sweep_attrs),
             }
         },
         "acquisition": {
@@ -202,7 +208,7 @@ def make_vu_content_for_step(bias_pA=0.0, with_nans=False):
                     {
                         "data": voltage_ds,
                         "starting_time": start_time_ds,
-                        "bias_current": DummyDS([bias_pA * 1e-12], {}),  # stored in A, code multiplies by 1e12 to pA
+                        "bias_current": DummyDS(bias_pA * 1e-12, {}),
                     },
                     attrs={},
                 ),
@@ -220,12 +226,33 @@ def test_vunwbreader_protocol_filter_excludes_non_matching():
     assert traces == []
 
 
+def test_vunwbreader_accepts_protocol_list():
+    content = make_vu_content_for_step()
+    in_data = {"protocol_name": ["IV", "Step"]}
+    reader = VUNWBReader(content, target_protocols=["IV", "Step"], in_data=in_data)
+
+    assert len(reader.read()) == 1
+
+
 def test_nwb_inspection_detects_vu_layout():
     content = make_vu_content_for_step()
     reader_class = _get_nwb_reader_class(content)
 
     assert reader_class is VUNWBReader
     assert _get_nwb_protocols(content, reader_class) == ["Step"]
+
+
+def test_nwb_inspection_reads_vu_protocol_from_dataset():
+    content = make_vu_content_for_step(stimulus_description_in_attrs=False)
+    reader = VUNWBReader(
+        content,
+        target_protocols=["Step"],
+        in_data={"protocol_name": "Step"},
+    )
+
+    assert _get_nwb_protocols(content, VUNWBReader) == ["Step"]
+    assert len(reader.read()) == 1
+
 
 def make_scala_content(protocol="Step", repetition=None):
     acq = {}

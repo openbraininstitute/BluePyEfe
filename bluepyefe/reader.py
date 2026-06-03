@@ -211,7 +211,7 @@ def _unique(values):
 
 
 def _get_vu_stimulus_description(current_sweep):
-    """Return the protocol description stored by VU NWB files."""
+    """Return the VU protocol description from either supported NWB location."""
     try:
         return _decode_nwb_value(current_sweep.attrs["stimulus_description"])
     except KeyError:
@@ -219,16 +219,26 @@ def _get_vu_stimulus_description(current_sweep):
 
 
 def _is_vu_nwb(content):
-    """Return whether content uses paired VU DA/AD sweeps."""
+    """Return whether content looks like a VU NWB file.
+
+    VU sweep names use DA/AD channel markers:
+    - DA: digital-to-analog output channel for the commanded stimulus.
+    - AD: analog-to-digital input channel for the recorded response.
+
+    A stimulus sweep under /stimulus/presentation with "DA" in its name
+    should have a corresponding acquisition sweep with "DA" replaced by "AD".
+    """
     voltage_sweeps = content["acquisition"].get("timeseries", content["acquisition"])
-    return any(
-        (name.endswith("DA") or "DA" in name) and name.replace("DA", "AD") in voltage_sweeps
-        for name in content.get("stimulus", {}).get("presentation", {}).keys()
-    )
+    for current_sweep_name in content.get("stimulus", {}).get("presentation", {}):
+        if "DA" not in current_sweep_name:
+            continue
+        if current_sweep_name.replace("DA", "AD") in voltage_sweeps:
+            return True
+    return False
 
 
 def _get_nwb_reader_class(content):
-    """Select the NWB reader class for an opened NWB file."""
+    """Select the NWB reader class from the NWB file layout."""
     if "data_organization" in content:
         return BBPNWBReader
     if _is_vu_nwb(content):
@@ -258,6 +268,8 @@ def _create_nwb_reader(reader_class, content, target_protocols, in_data):
         )
     if reader_class is TRTNWBReader:
         return reader_class(content, target_protocols, repetition=None)
+    if reader_class is AIBSNWBReader:
+        return reader_class(content, target_protocols)
     return reader_class(content, target_protocols, repetition=in_data.get("repetition", None))
 
 
@@ -325,17 +337,8 @@ def inspect_nwb(filepath, protocol_names=None, repetition=None, v_file=None):
                 "repetition": repetition,
                 "v_file": v_file,
             }
-            if reader_class is VUNWBReader:
-                traces = []
-                for protocol_name in target_protocols:
-                    in_data["protocol_name"] = protocol_name
-                    reader = _create_nwb_reader(
-                        reader_class, content, [protocol_name], in_data
-                    )
-                    traces.extend(reader.read())
-            else:
-                reader = _create_nwb_reader(reader_class, content, target_protocols, in_data)
-                traces = reader.read()
+            reader = _create_nwb_reader(reader_class, content, target_protocols, in_data)
+            traces = reader.read()
 
             if not traces:
                 raise NWBInspectionError(

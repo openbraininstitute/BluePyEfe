@@ -414,6 +414,12 @@ class VUNWBReader(NWBReader):
         self.repetition = repetition
         self.in_data = in_data
 
+    def _get_target_protocols(self):
+        target_protocols = self.in_data.get("protocol_name", self.target_protocols)
+        if isinstance(target_protocols, str):
+            return [target_protocols]
+        return target_protocols
+
     def read(self):
         """ Read and format the content of the NWB file
         Returns:
@@ -421,6 +427,7 @@ class VUNWBReader(NWBReader):
         """
 
         data = []
+        target_protocols = self._get_target_protocols()
         for sweep_name, current_sweep in list(self.content["stimulus"]["presentation"].items()):
 
             stimulus_description = None
@@ -433,7 +440,7 @@ class VUNWBReader(NWBReader):
                 continue
             translated_name = PROTOCOL_VU_TO_BBP[stimulus_description]
 
-            if translated_name != self.in_data["protocol_name"]:
+            if translated_name not in target_protocols:
                 continue
 
             voltage_sweep_name = sweep_name.replace("DA", "AD")
