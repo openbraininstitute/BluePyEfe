@@ -27,6 +27,20 @@ from .tools import scipy_signal2d
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_CHIRP_FREQUENCY_BASE = 1.0
+DEFAULT_CHIRP_FREQUENCY_SCALE = 1.0
+DEFAULT_CHIRP_FREQUENCY_DENOMINATOR = 5.15
+DEFAULT_CHIRP_TIME_OFFSET = 0.1
+
+
+def _get_metadata_float(name, config_data, reader_data, default):
+    """Return a numeric metadata value, preferring config over reader data."""
+    if name in config_data and config_data[name] is not None:
+        return float(config_data[name])
+    if name in reader_data and reader_data[name] is not None:
+        return float(reader_data[name])
+    return default
+
 
 class SineSpec(Recording):
 
@@ -51,6 +65,30 @@ class SineSpec(Recording):
 
         self.amp_rel = None
         self.hypamp_rel = None
+        self.chirp_frequency_base = _get_metadata_float(
+            "chirp_frequency_base",
+            self.config_data,
+            self.reader_data,
+            DEFAULT_CHIRP_FREQUENCY_BASE,
+        )
+        self.chirp_frequency_scale = _get_metadata_float(
+            "chirp_frequency_scale",
+            self.config_data,
+            self.reader_data,
+            DEFAULT_CHIRP_FREQUENCY_SCALE,
+        )
+        self.chirp_frequency_denominator = _get_metadata_float(
+            "chirp_frequency_denominator",
+            self.config_data,
+            self.reader_data,
+            DEFAULT_CHIRP_FREQUENCY_DENOMINATOR,
+        )
+        self.chirp_time_offset = _get_metadata_float(
+            "chirp_time_offset",
+            self.config_data,
+            self.reader_data,
+            DEFAULT_CHIRP_TIME_OFFSET,
+        )
 
         if self.t is not None and self.current is not None:
             self.interpret(
@@ -62,7 +100,11 @@ class SineSpec(Recording):
             self.compute_spikecount(efel_settings)
 
         self.export_attr = ["ton", "toff", "tend", "amp", "hypamp", "dt",
-                            "amp_rel", "hypamp_rel"]
+                            "amp_rel", "hypamp_rel",
+                            "chirp_frequency_base",
+                            "chirp_frequency_scale",
+                            "chirp_frequency_denominator",
+                            "chirp_time_offset"]
 
     def get_stimulus_parameters(self):
         """Returns the eCode parameters"""
@@ -72,6 +114,10 @@ class SineSpec(Recording):
             "thresh_perc": self.amp_rel,
             "duration": self.toff - self.ton,
             "totduration": self.tend,
+            "chirp_frequency_base": self.chirp_frequency_base,
+            "chirp_frequency_scale": self.chirp_frequency_scale,
+            "chirp_frequency_denominator": self.chirp_frequency_denominator,
+            "chirp_time_offset": self.chirp_time_offset,
         }
         return ecode_params
 
@@ -121,11 +167,18 @@ class SineSpec(Recording):
         t = numpy.arange(0.0, self.tend, self.dt)
         t_sine = numpy.arange(0.0, self.tend / 1e3, self.dt / 1e3)
 
+        t_shifted = t_sine - self.chirp_time_offset
         current = self.amp * numpy.sin(
             2.0
             * numpy.pi
-            * (1.0 + (1.0 / (5.15 - (t_sine - 0.1))))
-            * (t_sine - 0.1)
+            * (
+                self.chirp_frequency_base
+                + (
+                    self.chirp_frequency_scale
+                    / (self.chirp_frequency_denominator - t_shifted)
+                )
+            )
+            * t_shifted
         )
 
         current[:ton_idx] = 0.0
