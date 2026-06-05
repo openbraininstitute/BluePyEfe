@@ -13,7 +13,13 @@ from bluepyefe.reader import (
     nwb_reader,
 )
 from bluepyefe.nwbreader import (
-    NWBReader, AIBSNWBReader, ScalaNWBReader, BBPNWBReader, TRTNWBReader, VUNWBReader
+    PROTOCOL_VU_TO_BBP,
+    NWBReader,
+    AIBSNWBReader,
+    ScalaNWBReader,
+    BBPNWBReader,
+    TRTNWBReader,
+    VUNWBReader,
 )
 
 
@@ -175,7 +181,10 @@ def test_nwb_inspection_detects_aibs_layout(dummy_content):
     assert _get_nwb_protocols(dummy_content, reader_class) == ["Step"]
 
 def make_vu_content_for_step(
-    bias_pA=0.0, with_nans=False, stimulus_description_in_attrs=True
+    bias_pA=0.0,
+    with_nans=False,
+    stimulus_description_in_attrs=True,
+    stimulus_description="CCSteps_DA_0",
 ):
     # Voltage/data
     voltage_ds = DummyDS(
@@ -191,9 +200,11 @@ def make_vu_content_for_step(
     sweep_children = {"data": current_ds}
     sweep_attrs = {}
     if stimulus_description_in_attrs:
-        sweep_attrs["stimulus_description"] = "CCSteps_DA_0"
+        sweep_attrs["stimulus_description"] = stimulus_description
     else:
-        sweep_children["stimulus_description"] = DummyDS([b"CCSteps_DA_0"], {})
+        sweep_children["stimulus_description"] = DummyDS(
+            [stimulus_description.encode("UTF-8")], {}
+        )
 
     # Group layout
     content = {
@@ -217,6 +228,23 @@ def make_vu_content_for_step(
     }
     return content
 
+
+def test_vu_protocol_mapping_covers_supported_protocols():
+    assert PROTOCOL_VU_TO_BBP == {
+        "X1PS_SubThresh_DA_0": "IV",
+        "X2LP_Search_DA_0": "IDThresh",
+        "X3LP_Rheo_DA_0": "IDRest",
+        "X4PS_SupraThresh_DA_0": "IDRest",
+        "X5SP_Search_DA_0": "IDThresh",
+        "X6SP_Rheo_DA_0": "IDRest",
+        "X6SQ_C2SSTRIPLE_DA_0": "SpikeRec",
+        "X7Ramp_DA_0": "Ramp",
+        "X7_Ramp_DA_0": "Ramp",
+        "X8_CHIRP_DA_0": "SineSpec",
+        "CCSteps_DA_0": "Step",
+        "steps_DA_0": "Step",
+    }
+
 def test_vunwbreader_protocol_filter_excludes_non_matching():
     # stimulus_description maps to "Step"; ask for IV -> excluded
     content = make_vu_content_for_step()
@@ -230,6 +258,14 @@ def test_vunwbreader_accepts_protocol_list():
     content = make_vu_content_for_step()
     in_data = {"protocol_name": ["IV", "Step"]}
     reader = VUNWBReader(content, target_protocols=["IV", "Step"], in_data=in_data)
+
+    assert len(reader.read()) == 1
+
+
+def test_vunwbreader_matches_translated_protocol_case_insensitively():
+    content = make_vu_content_for_step(stimulus_description="X2LP_Search_DA_0")
+    in_data = {"protocol_name": "IDthresh"}
+    reader = VUNWBReader(content, target_protocols=["IDthresh"], in_data=in_data)
 
     assert len(reader.read()) == 1
 

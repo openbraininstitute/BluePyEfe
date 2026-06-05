@@ -5,9 +5,16 @@ logger = logging.getLogger(__name__)
 
 PROTOCOL_VU_TO_BBP = {
     "X1PS_SubThresh_DA_0": "IV",
-    "X2LP_Search_DA_0": "IDthresh",
-    "X4PS_SupraThresh_DA_0": "IDrest",
-    "CCSteps_DA_0": "Step"
+    "X2LP_Search_DA_0": "IDThresh",
+    "X3LP_Rheo_DA_0": "IDRest",
+    "X4PS_SupraThresh_DA_0": "IDRest",
+    "X5SP_Search_DA_0": "IDThresh",
+    "X6SP_Rheo_DA_0": "IDRest",
+    "X6SQ_C2SSTRIPLE_DA_0": "SpikeRec",
+    "X7Ramp_DA_0": "Ramp",
+    "X8_CHIRP_DA_0": "SineSpec",
+    "CCSteps_DA_0": "Step",
+    "steps_DA_0": "Step",
 }
 
 
@@ -428,6 +435,11 @@ class VUNWBReader(NWBReader):
 
         data = []
         target_protocols = self._get_target_protocols()
+        target_protocols_lower = (
+            [protocol.lower() for protocol in target_protocols]
+            if target_protocols
+            else None
+        )
         for sweep_name, current_sweep in list(self.content["stimulus"]["presentation"].items()):
 
             stimulus_description = None
@@ -440,7 +452,10 @@ class VUNWBReader(NWBReader):
                 continue
             translated_name = PROTOCOL_VU_TO_BBP[stimulus_description]
 
-            if translated_name not in target_protocols:
+            if (
+                target_protocols_lower and
+                translated_name.lower() not in target_protocols_lower
+            ):
                 continue
 
             voltage_sweep_name = sweep_name.replace("DA", "AD")
