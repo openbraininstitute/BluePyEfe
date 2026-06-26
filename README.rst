@@ -61,7 +61,8 @@ To install BluePyEfe, run:
 Quick Start and Operating Principle
 ===================================
 
-For a hands-on introduction to BluePyEfe, have a look at the notebook `examples/example_of_extraction.ipynb <examples/example_of_extraction.ipynb>`_
+For a hands-on introduction to BluePyEfe, have a look at the notebook `examples/example_of_extraction.ipynb <examples/example_of_extraction.ipynb>`_.
+For an NWB-focused example, see `examples/nwb_extraction.ipynb <examples/nwb_extraction.ipynb>`_.
 
 The goal of the present package is to extract meaningful electrophysiological features (e-features) from voltage time series.
 The e-features considered in the present package are the one implemented in the `eFEL python library <https://github.com/openbraininstitute/eFEL>`_. See `this pdf <https://bluebrain.github.io/eFEL/efeature-documentation.pdf>`_ for a list of available e-features.
