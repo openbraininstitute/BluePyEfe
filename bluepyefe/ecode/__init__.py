@@ -18,7 +18,9 @@ Copyright (c) 2020, EPFL/Blue Brain Project
 from . import DeHyperPol
 from . import HyperDePol
 from . import SpikeRec
+from . import capCheck
 from . import negCheops
+from . import pinkNoise
 from . import posCheops
 from . import ramp
 from . import sAHP
@@ -63,4 +65,6 @@ eCodes = {
     "poscheops": posCheops.PosCheops,
     "spikerec": SpikeRec.SpikeRec,
     "sinespec": sineSpec.SineSpec,
+    "vupinknoise": pinkNoise.VUPinkNoise,
+    "vucapcheck": capCheck.VUCapCheck,
 }

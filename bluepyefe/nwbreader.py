@@ -8,11 +8,15 @@ PROTOCOL_VU_TO_BBP = {
     "X2LP_Search_DA_0": "IDThresh",
     "X3LP_Rheo_DA_0": "IDRest",
     "X4PS_SupraThresh_DA_0": "IDRest",
+    "X4PT_C2NSD1SHORT_DA_0": "VUPinkNoise",
+    "X4PU_C2NSD2SHORT_DA_0": "VUPinkNoise",
     "X5SP_Search_DA_0": "IDThresh",
     "X6SP_Rheo_DA_0": "IDRest",
     "X6SQ_C2SSTRIPLE_DA_0": "SpikeRec",
     "X7Ramp_DA_0": "Ramp",
     "X8_CHIRP_DA_0": "SineSpec",
+    "X9_C1QCAPCHK_DA_0": "VUCapCheck",
+    "X9_C1SQCAPCHK_DA_0": "VUCapCheck",
     "CCSteps_DA_0": "Step",
     "steps_DA_0": "Step",
 }
@@ -470,6 +474,10 @@ class VUNWBReader(NWBReader):
                 start_time=voltage_sweeps[voltage_sweep_name]["starting_time"],
                 trace_name=sweep_name
             ))
+            if len(data[-1]["voltage"]) == 0 or len(data[-1]["current"]) == 0:
+                logger.info("Skipping %s because voltage or current data is empty.", sweep_name)
+                data.pop(-1)
+                continue
 
             # Shorten protocols that finish with NaNs
             first_nan = numpy.argmax(numpy.isnan(data[-1]["current"]))

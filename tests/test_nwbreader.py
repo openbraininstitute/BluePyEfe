@@ -185,6 +185,7 @@ def make_vu_content_for_step(
     with_nans=False,
     stimulus_description_in_attrs=True,
     stimulus_description="CCSteps_DA_0",
+    current_values=None,
 ):
     # Voltage/data
     voltage_ds = DummyDS(
@@ -192,8 +193,10 @@ def make_vu_content_for_step(
         {"conversion": 1.0, "unit": "mV", "rate": 10000},
     )
     # Current/data with optional NaNs at tail
-    current_vals = np.array([0.1, 0.2, 0.3, 0.4], dtype=float)
-    if with_nans:
+    if current_values is None:
+        current_values = [0.1, 0.2, 0.3, 0.4]
+    current_vals = np.array(current_values, dtype=float)
+    if with_nans and current_vals.size:
         current_vals[-1] = np.nan
     current_ds = DummyDS(current_vals, {"conversion": 1.0, "unit": "pA"})
     start_time_ds = DummyDS([0.0], {"rate": 10000, "unit": "s"})
@@ -235,12 +238,15 @@ def test_vu_protocol_mapping_covers_supported_protocols():
         "X2LP_Search_DA_0": "IDThresh",
         "X3LP_Rheo_DA_0": "IDRest",
         "X4PS_SupraThresh_DA_0": "IDRest",
+        "X4PT_C2NSD1SHORT_DA_0": "VUPinkNoise",
+        "X4PU_C2NSD2SHORT_DA_0": "VUPinkNoise",
         "X5SP_Search_DA_0": "IDThresh",
         "X6SP_Rheo_DA_0": "IDRest",
         "X6SQ_C2SSTRIPLE_DA_0": "SpikeRec",
         "X7Ramp_DA_0": "Ramp",
-        "X7_Ramp_DA_0": "Ramp",
         "X8_CHIRP_DA_0": "SineSpec",
+        "X9_C1QCAPCHK_DA_0": "VUCapCheck",
+        "X9_C1SQCAPCHK_DA_0": "VUCapCheck",
         "CCSteps_DA_0": "Step",
         "steps_DA_0": "Step",
     }
@@ -268,6 +274,14 @@ def test_vunwbreader_matches_translated_protocol_case_insensitively():
     reader = VUNWBReader(content, target_protocols=["IDthresh"], in_data=in_data)
 
     assert len(reader.read()) == 1
+
+
+def test_vunwbreader_skips_empty_data_trace():
+    content = make_vu_content_for_step(current_values=[])
+    in_data = {"protocol_name": "Step"}
+    reader = VUNWBReader(content, target_protocols=["Step"], in_data=in_data)
+
+    assert reader.read() == []
 
 
 def test_nwb_inspection_detects_vu_layout():
