@@ -490,7 +490,8 @@ class VUNWBReader(NWBReader):
                 data.pop(-1)
             else:
                 # Offset the current with the holding current
-                holding_current = float(voltage_sweeps[voltage_sweep_name]["bias_current"][()]) * 1e-12  # in pA
+                bias_current = voltage_sweeps[voltage_sweep_name]["bias_current"][()]
+                holding_current = float(numpy.asarray(bias_current).reshape(-1)[0]) * 1e-12  # in pA
                 data[-1]["current"] = numpy.asarray(data[-1]["current"]) + holding_current
 
             # For Step, IV and IDRest protocols, replace the first 90 ms with the value at 90 ms

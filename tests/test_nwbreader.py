@@ -182,6 +182,7 @@ def test_nwb_inspection_detects_aibs_layout(dummy_content):
 
 def make_vu_content_for_step(
     bias_pA=0.0,
+    bias_current_as_array=False,
     with_nans=False,
     stimulus_description_in_attrs=True,
     stimulus_description="CCSteps_DA_0",
@@ -208,6 +209,9 @@ def make_vu_content_for_step(
         sweep_children["stimulus_description"] = DummyDS(
             [stimulus_description.encode("UTF-8")], {}
         )
+    bias_current = bias_pA * 1e-12
+    if bias_current_as_array:
+        bias_current = [bias_current]
 
     # Group layout
     content = {
@@ -222,7 +226,7 @@ def make_vu_content_for_step(
                     {
                         "data": voltage_ds,
                         "starting_time": start_time_ds,
-                        "bias_current": DummyDS(bias_pA * 1e-12, {}),
+                        "bias_current": DummyDS(bias_current, {}),
                     },
                     attrs={},
                 ),
@@ -282,6 +286,14 @@ def test_vunwbreader_skips_empty_data_trace():
     reader = VUNWBReader(content, target_protocols=["Step"], in_data=in_data)
 
     assert reader.read() == []
+
+
+def test_vunwbreader_accepts_array_bias_current():
+    content = make_vu_content_for_step(bias_pA=1.0, bias_current_as_array=True)
+    in_data = {"protocol_name": "Step"}
+    reader = VUNWBReader(content, target_protocols=["Step"], in_data=in_data)
+
+    assert len(reader.read()) == 1
 
 
 def test_nwb_inspection_detects_vu_layout():
