@@ -43,33 +43,41 @@ def test_vu_ecodes_are_registered():
 
 
 def test_vu_pink_noise_recording_can_be_read_and_generated():
-    current = numpy.zeros(500)
-    current[100:400] = numpy.sin(numpy.linspace(0.0, 20.0, 300)) * 0.05
+    current = numpy.zeros(600)
+    current[80:140] = 0.03 + 0.008 * numpy.sin(numpy.linspace(0.0, 20.0, 60))
+    current[240:320] = 0.06 + 0.012 * numpy.sin(numpy.linspace(0.0, 30.0, 80))
+    current[420:520] = 0.09 + 0.016 * numpy.sin(numpy.linspace(0.0, 40.0, 100))
 
     recording = _read_recording(
         "VUPinkNoise",
         current,
-        config={"ton": 10.0, "toff": 40.0},
+        config={"ton": 8.0, "toff": 52.0},
     )
     generated_t, generated_current = recording.generate()
 
     assert isinstance(recording, VUPinkNoise)
-    assert recording.ton == 10.0
-    assert recording.toff == 40.0
+    numpy.testing.assert_allclose(recording.ton, 8.0)
+    numpy.testing.assert_allclose(recording.toff, 52.0)
     assert recording.amp > 0.0
     assert len(generated_t) == len(generated_current)
+    numpy.testing.assert_allclose(generated_current[80:520], current[80:520])
 
 
 def test_vu_cap_check_recording_can_be_read_and_generated():
     current = numpy.zeros(500)
-    current[100:120] = 0.05
-    current[200:220] = -0.05
-    current[300:320] = 0.05
+    cycle = numpy.linspace(-0.05, 0.05, 50, endpoint=False)
+    current[50:450] = numpy.tile(cycle, 8)
 
-    recording = _read_recording("VUCapCheck", current)
+    recording = _read_recording(
+        "VUCapCheck",
+        current,
+        config={"ton": 5.0, "toff": 45.0},
+    )
     generated_t, generated_current = recording.generate()
 
     assert isinstance(recording, VUCapCheck)
-    assert len(recording.tpulse) == 3
+    numpy.testing.assert_allclose(recording.ton, 5.0)
+    numpy.testing.assert_allclose(recording.toff, 45.0)
     assert recording.amp > 0.0
     assert len(generated_t) == len(generated_current)
+    numpy.testing.assert_allclose(generated_current[50:450], current[50:450])

@@ -1,7 +1,7 @@
 """VUCapCheck eCode class"""
 
 """
-Copyright (c) 2022, EPFL/Blue Brain Project
+Copyright 2026 Open Brain Institute
 
  This file is part of BluePyEfe <https://github.com/BlueBrain/BluePyEfe>
 
@@ -23,24 +23,13 @@ import numpy
 
 from ..recording import Recording
 from .tools import base_current
-from .tools import scipy_signal2d
 
 logger = logging.getLogger(__name__)
 
 
-def _group_indexes(indexes, gap):
-    groups = []
-    for index in indexes:
-        if not groups or groups[-1][-1] + gap < index:
-            groups.append([index])
-        else:
-            groups[-1].append(index)
-    return groups
-
-
 class VUCapCheck(Recording):
 
-    """VU alternating square-pulse capacitance-check stimulus."""
+    """VU capacitance-check current stimulus"""
 
     def __init__(
         self,
@@ -55,12 +44,10 @@ class VUCapCheck(Recording):
         self.ton = None
         self.toff = None
         self.tend = None
-        self.tpulse = []
-        self.pulse_duration = None
-        self.pulse_amps = []
         self.amp = None
         self.hypamp = None
         self.dt = None
+        self.waveform = None
 
         self.amp_rel = None
         self.hypamp_rel = None
@@ -74,91 +61,88 @@ class VUCapCheck(Recording):
             self.set_autothreshold()
             self.compute_spikecount(efel_settings)
 
-        self.export_attr = ["ton", "toff", "tend", "tpulse",
-                            "pulse_duration", "pulse_amps", "amp",
-                            "hypamp", "dt", "amp_rel", "hypamp_rel"]
-
-    @property
-    def multi_stim_start(self):
-        return list(self.tpulse)
-
-    @property
-    def multi_stim_end(self):
-        return [t + self.pulse_duration for t in self.tpulse]
+        self.export_attr = ["ton", "toff", "tend", "amp", "hypamp", "dt",
+                            "waveform", "amp_rel", "hypamp_rel"]
 
     def get_stimulus_parameters(self):
-        """Returns the eCode parameters."""
-        return {
-            "delay": self.tpulse[0] if self.tpulse else self.ton,
-            "n_pulses": len(self.tpulse),
-            "pulse_duration": self.pulse_duration,
-            "pulse_amps": self.pulse_amps,
+        """Returns the eCode parameters"""
+        ecode_params = {
+            "delay": self.ton,
             "amp": self.amp,
             "thresh_perc": self.amp_rel,
+            "duration": self.toff - self.ton,
             "totduration": self.tend,
+            "dt": self.dt,
+            "waveform": self.waveform,
         }
+        return ecode_params
 
-    def _detect_pulses(self, smooth_current):
-        deviation = numpy.abs(numpy.asarray(smooth_current) - self.hypamp)
+    def _get_timing_index(self, name, config_data, reader_data):
+        if name in config_data and config_data[name] is not None:
+            return int(round(config_data[name] / self.dt))
+        if name in reader_data and reader_data[name] is not None:
+            return int(round(reader_data[name]))
+        return None
+
+    def _detect_stimulus_indexes(self, current):
+        deviation = numpy.abs(numpy.asarray(current) - self.hypamp)
         edge = min(max(1, int(round(10.0 / self.dt))), len(deviation))
         noise_level = numpy.std(
             numpy.concatenate((deviation[:edge], deviation[-edge:]))
         )
-        threshold = max(4.5 * noise_level, 0.1 * numpy.max(deviation), 1e-5)
+        threshold = max(4.5 * noise_level, 0.02 * numpy.max(deviation), 1e-5)
         active = numpy.flatnonzero(deviation > threshold)
-        gap = max(1, int(round(0.5 / self.dt)))
-        return _group_indexes(active, gap)
+
+        if len(active) == 0:
+            logger.warning(
+                "The automatic cap-check detection failed for the recording "
+                f"{self.protocol_name} in files {self.files}. The whole trace "
+                "will be used as the stimulus waveform."
+            )
+            return 0, len(deviation)
+
+        return active[0], active[-1] + 1
 
     def interpret(self, t, current, config_data, reader_data):
-        """Detect cap-check pulses from the current trace."""
+        """Analyse a current array and extract from it the parameters
+        needed to reconstruct the array"""
         self.dt = t[1]
 
-        smooth_current = scipy_signal2d(current, 5)
+        ton = self._get_timing_index("ton", config_data, reader_data)
+        toff = self._get_timing_index("toff", config_data, reader_data)
 
-        hypamp_value = base_current(current)
+        hypamp_value = base_current(current, idx_ton=ton or 300)
         self.set_amplitudes_ecode("hypamp", config_data, reader_data, hypamp_value)
 
-        pulse_groups = self._detect_pulses(smooth_current)
+        if ton is None or toff is None:
+            detected_ton, detected_toff = self._detect_stimulus_indexes(current)
+            ton = detected_ton if ton is None else ton
+            toff = detected_toff if toff is None else toff
 
-        if not pulse_groups:
-            logger.warning(
-                "The automatic cap-check pulse detection failed for the "
-                f"recording {self.protocol_name} in files {self.files}. "
-                "The whole trace will be treated as one pulse."
-            )
-            pulse_groups = [list(range(len(current)))]
+        ton = max(0, min(ton, len(current) - 1))
+        toff = max(ton + 1, min(toff, len(current)))
 
-        pulse_starts = [group[0] for group in pulse_groups]
-        pulse_ends = [group[-1] + 1 for group in pulse_groups]
-
-        self.tpulse = [t[start] for start in pulse_starts]
-        durations = [
-            (end - start) * self.dt
-            for start, end in zip(pulse_starts, pulse_ends)
-        ]
-        self.pulse_duration = float(numpy.median(durations))
-        self.pulse_amps = [
-            float(numpy.median(current[start:end]) - self.hypamp)
-            for start, end in zip(pulse_starts, pulse_ends)
-        ]
-
-        amp_value = max(numpy.abs(self.pulse_amps)) if self.pulse_amps else 0.0
+        stimulus = numpy.asarray(current[ton:toff]) - self.hypamp
+        amp_value = numpy.max(numpy.abs(stimulus)) if len(stimulus) else 0.0
         self.set_amplitudes_ecode("amp", config_data, reader_data, amp_value)
 
-        self.ton = self.tpulse[0]
-        toff_idx = pulse_ends[-1]
-        self.toff = t[toff_idx] if toff_idx < len(t) else len(t) * self.dt
+        if self.amp == 0.0:
+            self.waveform = numpy.zeros(stimulus.shape)
+        else:
+            self.waveform = stimulus / self.amp
+
+        self.ton = t[ton]
+        self.toff = t[toff] if toff < len(t) else len(t) * self.dt
         self.tend = len(t) * self.dt
 
     def generate(self):
-        """Generate the cap-check current array from detected pulses."""
-        time = numpy.arange(0.0, self.tend, self.dt)
-        current = numpy.full(time.shape, numpy.float64(self.hypamp))
+        """Generate the current array from the parameters of the ecode"""
+        t = numpy.arange(0.0, self.tend, self.dt)
+        current = numpy.full(t.shape, numpy.float64(self.hypamp))
 
-        duration = int(round(self.pulse_duration / self.dt))
-        for tpulse, amp in zip(self.tpulse, self.pulse_amps):
-            start = int(round(tpulse / self.dt))
-            end = min(start + duration, len(current))
-            current[start:end] += numpy.float64(amp)
+        waveform = numpy.asarray(self.waveform)
+        ton = int(round(self.ton / self.dt))
+        toff = min(ton + len(waveform), len(current))
+        current[ton:toff] += numpy.float64(self.amp) * waveform[:toff - ton]
 
-        return time, current
+        return t, current

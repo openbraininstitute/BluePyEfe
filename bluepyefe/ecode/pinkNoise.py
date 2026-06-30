@@ -1,7 +1,7 @@
 """VUPinkNoise eCode class"""
 
 """
-Copyright (c) 2022, EPFL/Blue Brain Project
+Copyright 2026 Open Brain Institute
 
  This file is part of BluePyEfe <https://github.com/BlueBrain/BluePyEfe>
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 class VUPinkNoise(Recording):
 
-    """VU pink-noise current stimulus."""
+    """VU pink-noise current stimulus"""
 
     def __init__(
         self,
@@ -66,8 +66,8 @@ class VUPinkNoise(Recording):
                             "waveform", "amp_rel", "hypamp_rel"]
 
     def get_stimulus_parameters(self):
-        """Returns the eCode parameters."""
-        return {
+        """Returns the eCode parameters"""
+        ecode_params = {
             "delay": self.ton,
             "amp": self.amp,
             "thresh_perc": self.amp_rel,
@@ -76,6 +76,7 @@ class VUPinkNoise(Recording):
             "dt": self.dt,
             "waveform": self.waveform,
         }
+        return ecode_params
 
     def _get_timing_index(self, name, config_data, reader_data):
         if name in config_data and config_data[name] is not None:
@@ -104,7 +105,8 @@ class VUPinkNoise(Recording):
         return active[0], active[-1] + 1
 
     def interpret(self, t, current, config_data, reader_data):
-        """Store the active pink-noise waveform from the recorded current."""
+        """Analyse a current array and extract from it the parameters
+        needed to reconstruct the array"""
         self.dt = t[1]
 
         smooth_current = scipy_signal2d(current, 85)
@@ -137,7 +139,7 @@ class VUPinkNoise(Recording):
         self.tend = len(t) * self.dt
 
     def generate(self):
-        """Generate the pink-noise current array from the stored waveform."""
+        """Generate the current array from the parameters of the ecode"""
         t = numpy.arange(0.0, self.tend, self.dt)
         current = numpy.full(t.shape, numpy.float64(self.hypamp))
 
