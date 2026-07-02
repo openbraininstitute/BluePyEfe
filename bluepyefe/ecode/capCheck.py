@@ -3,7 +3,7 @@
 """
 Copyright 2026 Open Brain Institute
 
- This file is part of BluePyEfe <https://github.com/BlueBrain/BluePyEfe>
+ This file is part of BluePyEfe <https://github.com/openbraininstitute/BluePyEfe>
 
  This library is free software; you can redistribute it and/or modify it under
  the terms of the GNU Lesser General Public License version 3.0 as published
