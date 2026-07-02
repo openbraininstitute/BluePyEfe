@@ -65,6 +65,6 @@ eCodes = {
     "poscheops": posCheops.PosCheops,
     "spikerec": SpikeRec.SpikeRec,
     "sinespec": sineSpec.SineSpec,
-    "vupinknoise": pinkNoise.VUPinkNoise,
-    "vucapcheck": capCheck.VUCapCheck,
+    "pinknoise": pinkNoise.PinkNoise,
+    "capcheck": capCheck.CapCheck,
 }

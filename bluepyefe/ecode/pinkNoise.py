@@ -1,4 +1,4 @@
-"""VUPinkNoise eCode class"""
+"""PinkNoise eCode class"""
 
 """
 Copyright 2026 Open Brain Institute
@@ -28,13 +28,8 @@ from .tools import scipy_signal2d
 logger = logging.getLogger(__name__)
 
 
-class VUPinkNoise(Recording):
-    """VU rheobase-scaled pink-noise stimulation protocol.
-
-    Official VU protocols:
-
-    - ``X4PT_C2NSD1SHORT_DA_0``: pink noise seed 1.
-    - ``X4PU_C2NSD2SHORT_DA_0``: pink noise seed 2.
+class PinkNoise(Recording):
+    """Rheobase-scaled pink-noise stimulation protocol.
 
     This protocol applies a pink-noise current command scaled relative to the
     rheobase. The stimulus uses three amplitude levels: 0.75x, 1x, and 1.5x
@@ -46,11 +41,11 @@ class VUPinkNoise(Recording):
         self,
         config_data,
         reader_data,
-        protocol_name="VUPinkNoise",
+        protocol_name="PinkNoise",
         efel_settings=None
     ):
 
-        super(VUPinkNoise, self).__init__(config_data, reader_data, protocol_name)
+        super(PinkNoise, self).__init__(config_data, reader_data, protocol_name)
 
         self.ton = None
         self.toff = None

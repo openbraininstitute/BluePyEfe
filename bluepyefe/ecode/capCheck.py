@@ -1,4 +1,4 @@
-"""VUCapCheck eCode class"""
+"""CapCheck eCode class"""
 
 """
 Copyright 2026 Open Brain Institute
@@ -27,26 +27,23 @@ from .tools import base_current
 logger = logging.getLogger(__name__)
 
 
-class VUCapCheck(Recording):
-    """VU capacitance-check current stimulus.
+class CapCheck(Recording):
+    """Capacitance-check current stimulus.
 
-    Official VU protocol: ``X9_C1QCAPCHK_DA_0``.
-
-    This protocol applies a repeated capacitance-check current command, run in
-    three repeats. The stimulus contains alternating current deflections around
-    the holding current and does not require rheobase scaling. It is used to
-    determine membrane capacitance from the passive voltage response.
+    This protocol applies a repeated capacitance-check current command.
+    The stimulus contains alternating alternating positive/negative pulses around the holding current.
+    It is used to determine membrane capacitance from the passive voltage response.
     """
 
     def __init__(
         self,
         config_data,
         reader_data,
-        protocol_name="VUCapCheck",
+        protocol_name="CapCheck",
         efel_settings=None
     ):
 
-        super(VUCapCheck, self).__init__(config_data, reader_data, protocol_name)
+        super(CapCheck, self).__init__(config_data, reader_data, protocol_name)
 
         self.ton = None
         self.toff = None
