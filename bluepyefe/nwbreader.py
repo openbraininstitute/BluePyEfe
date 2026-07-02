@@ -496,7 +496,7 @@ class VUNWBReader(NWBReader):
 
             # For Step, IV and IDRest protocols, replace the first 90 ms with the value at 90 ms
             # if stimulus_description == "CCSteps_DA_0":
-            if any(stimulus_description in s for s in ["CCSteps_DA_0", "X1PS_SubThresh_DA_0", "X4PS_SupraThresh_DA_0"]):
+            if stimulus_description in {"CCSteps_DA_0", "X1PS_SubThresh_DA_0", "X4PS_SupraThresh_DA_0"}:
                 if int(0.090 / data[-1]["dt"]) < len(data[-1]["current"]):
                     data[-1]["current"][0:int(0.090 / data[-1]["dt"])] = data[-1]["current"][int(0.090 / data[-1]["dt"])]
                     data[-1]["voltage"][0:int(0.090 / data[-1]["dt"])] = data[-1]["voltage"][int(0.090 / data[-1]["dt"])]
