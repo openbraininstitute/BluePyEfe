@@ -29,8 +29,18 @@ logger = logging.getLogger(__name__)
 
 
 class VUPinkNoise(Recording):
+    """VU rheobase-scaled pink-noise stimulation protocol.
 
-    """VU pink-noise current stimulus"""
+    Official VU protocols:
+
+    - ``X4PT_C2NSD1SHORT_DA_0``: pink noise seed 1.
+    - ``X4PU_C2NSD2SHORT_DA_0``: pink noise seed 2.
+
+    This protocol applies a pink-noise current command scaled relative to the
+    rheobase. The stimulus uses three amplitude levels: 0.75x, 1x, and 1.5x
+    rheobase. It is used to measure the response to suprathreshold noisy
+    stimulation and for model fitting and validation.
+    """
 
     def __init__(
         self,
