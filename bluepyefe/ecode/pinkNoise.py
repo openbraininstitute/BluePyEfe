@@ -124,7 +124,7 @@ class VUPinkNoise(Recording):
         ton = self._get_timing_index("ton", config_data, reader_data)
         toff = self._get_timing_index("toff", config_data, reader_data)
 
-        hypamp_value = base_current(current, idx_ton=ton or 300)
+        hypamp_value = base_current(current, idx_ton=300 if ton is None else ton)
         self.set_amplitudes_ecode("hypamp", config_data, reader_data, hypamp_value)
 
         if ton is None or toff is None:
