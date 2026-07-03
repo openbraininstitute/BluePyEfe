@@ -149,7 +149,7 @@ class PinkNoise(Recording):
         current = numpy.full(t.shape, numpy.float64(self.hypamp))
 
         waveform = numpy.asarray(self.waveform)
-        ton = int(round(self.ton / self.dt))
+        ton = int(self.ton / self.dt)
         toff = min(ton + len(waveform), len(current))
         current[ton:toff] += numpy.float64(self.amp) * waveform[:toff - ton]
 
