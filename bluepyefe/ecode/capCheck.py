@@ -31,7 +31,7 @@ class CapCheck(Recording):
     """Capacitance-check current stimulus.
 
     This protocol applies a repeated capacitance-check current command.
-    The stimulus contains alternating alternating positive/negative pulses around the holding current.
+    The stimulus contains alternating positive/negative pulses around the holding current.
     It is used to determine membrane capacitance from the passive voltage response.
     """
 

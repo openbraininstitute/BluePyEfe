@@ -21,6 +21,12 @@ PROTOCOL_VU_TO_BBP = {
     "steps_DA_0": "Step",
 }
 
+VU_STIMULI_REQUIRING_INITIAL_SAMPLE_REPLACEMENT = {
+    "CCSteps_DA_0",
+    "X1PS_SubThresh_DA_0",
+    "X4PS_SupraThresh_DA_0",
+}
+
 
 def _normalize_scala_protocol_name(protocol_name):
     """Normalize protocol labels using the Scala reader rules."""
@@ -494,16 +500,19 @@ class VUNWBReader(NWBReader):
                 holding_current = float(numpy.asarray(bias_current).reshape(-1)[0]) * 1e-12  # in pA
                 data[-1]["current"] = numpy.asarray(data[-1]["current"]) + holding_current
 
-            # For Step, IV and IDRest protocols, replace the first 90 ms with the value at 90 ms
-            # if stimulus_description == "CCSteps_DA_0":
-            if stimulus_description in {"CCSteps_DA_0", "X1PS_SubThresh_DA_0", "X4PS_SupraThresh_DA_0"}:
-                if int(0.090 / data[-1]["dt"]) < len(data[-1]["current"]):
-                    data[-1]["current"][0:int(0.090 / data[-1]["dt"])] = data[-1]["current"][int(0.090 / data[-1]["dt"])]
-                    data[-1]["voltage"][0:int(0.090 / data[-1]["dt"])] = data[-1]["voltage"][int(0.090 / data[-1]["dt"])]
+            # For selected VU Step/IV/IDRest stimuli, replace samples before 90 ms
+            # with the current and voltage values at 90 ms.
+            if stimulus_description in VU_STIMULI_REQUIRING_INITIAL_SAMPLE_REPLACEMENT:
+                replacement_index = int(0.090 / data[-1]["dt"])
+                if replacement_index < len(data[-1]["current"]):
+                    data[-1]["current"][:replacement_index] = data[-1]["current"][replacement_index]
+                    data[-1]["voltage"][:replacement_index] = data[-1]["voltage"][replacement_index]
                 else:
-                    # Handle the case when the index is out of bounds
-                    # You can choose to raise an exception, set a default value, or handle it in a different way
-                    logger.info(f"For {stimulus_description}, unable to replace 0-40 ms value with the one at 40th ms as current/voltage array is too short")
+                    logger.info(
+                        "For %s, unable to replace 0-90 ms values with the values at "
+                        "90 ms as current/voltage array is too short",
+                        stimulus_description,
+                    )
                     continue
 
         return data
