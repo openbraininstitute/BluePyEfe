@@ -5,9 +5,26 @@ logger = logging.getLogger(__name__)
 
 PROTOCOL_VU_TO_BBP = {
     "X1PS_SubThresh_DA_0": "IV",
-    "X2LP_Search_DA_0": "IDthresh",
-    "X4PS_SupraThresh_DA_0": "IDrest",
-    "CCSteps_DA_0": "Step"
+    "X2LP_Search_DA_0": "IDThresh",
+    "X3LP_Rheo_DA_0": "IDRest",
+    "X4PS_SupraThresh_DA_0": "IDRest",
+    "X4PT_C2NSD1SHORT_DA_0": "PinkNoise",
+    "X4PU_C2NSD2SHORT_DA_0": "PinkNoise",
+    "X5SP_Search_DA_0": "IDThresh",
+    "X6SP_Rheo_DA_0": "IDRest",
+    "X6SQ_C2SSTRIPLE_DA_0": "SpikeRec",
+    "X7Ramp_DA_0": "Ramp",
+    "X8_CHIRP_DA_0": "SineSpec",
+    "X9_C1QCAPCHK_DA_0": "CapCheck",
+    "X9_C1SQCAPCHK_DA_0": "CapCheck",
+    "CCSteps_DA_0": "Step",
+    "steps_DA_0": "Step",
+}
+
+VU_STIMULI_REQUIRING_INITIAL_SAMPLE_REPLACEMENT = {
+    "CCSteps_DA_0",
+    "X1PS_SubThresh_DA_0",
+    "X4PS_SupraThresh_DA_0",
 }
 
 
@@ -428,6 +445,11 @@ class VUNWBReader(NWBReader):
 
         data = []
         target_protocols = self._get_target_protocols()
+        target_protocols_lower = (
+            [protocol.lower() for protocol in target_protocols]
+            if target_protocols
+            else None
+        )
         for sweep_name, current_sweep in list(self.content["stimulus"]["presentation"].items()):
 
             stimulus_description = None
@@ -440,7 +462,10 @@ class VUNWBReader(NWBReader):
                 continue
             translated_name = PROTOCOL_VU_TO_BBP[stimulus_description]
 
-            if translated_name not in target_protocols:
+            if (
+                target_protocols_lower and
+                translated_name.lower() not in target_protocols_lower
+            ):
                 continue
 
             voltage_sweep_name = sweep_name.replace("DA", "AD")
@@ -455,6 +480,10 @@ class VUNWBReader(NWBReader):
                 start_time=voltage_sweeps[voltage_sweep_name]["starting_time"],
                 trace_name=sweep_name
             ))
+            if len(data[-1]["voltage"]) == 0 or len(data[-1]["current"]) == 0:
+                logger.info("Skipping %s because voltage or current data is empty.", sweep_name)
+                data.pop(-1)
+                continue
 
             # Shorten protocols that finish with NaNs
             first_nan = numpy.argmax(numpy.isnan(data[-1]["current"]))
@@ -467,19 +496,23 @@ class VUNWBReader(NWBReader):
                 data.pop(-1)
             else:
                 # Offset the current with the holding current
-                holding_current = float(voltage_sweeps[voltage_sweep_name]["bias_current"][()]) * 1e-12  # in pA
+                bias_current = voltage_sweeps[voltage_sweep_name]["bias_current"][()]
+                holding_current = float(numpy.asarray(bias_current).reshape(-1)[0]) * 1e-12  # in pA
                 data[-1]["current"] = numpy.asarray(data[-1]["current"]) + holding_current
 
-            # For Step, IV and IDRest protocols, replace the first 90 ms with the value at 90 ms
-            # if stimulus_description == "CCSteps_DA_0":
-            if any(stimulus_description in s for s in ["CCSteps_DA_0", "X1PS_SubThresh_DA_0", "X4PS_SupraThresh_DA_0"]):
-                if int(0.090 / data[-1]["dt"]) < len(data[-1]["current"]):
-                    data[-1]["current"][0:int(0.090 / data[-1]["dt"])] = data[-1]["current"][int(0.090 / data[-1]["dt"])]
-                    data[-1]["voltage"][0:int(0.090 / data[-1]["dt"])] = data[-1]["voltage"][int(0.090 / data[-1]["dt"])]
+            # For selected VU Step/IV/IDRest stimuli, replace samples before 90 ms
+            # with the current and voltage values at 90 ms.
+            if stimulus_description in VU_STIMULI_REQUIRING_INITIAL_SAMPLE_REPLACEMENT:
+                replacement_index = int(0.090 / data[-1]["dt"])
+                if replacement_index < len(data[-1]["current"]):
+                    data[-1]["current"][:replacement_index] = data[-1]["current"][replacement_index]
+                    data[-1]["voltage"][:replacement_index] = data[-1]["voltage"][replacement_index]
                 else:
-                    # Handle the case when the index is out of bounds
-                    # You can choose to raise an exception, set a default value, or handle it in a different way
-                    logger.info(f"For {stimulus_description}, unable to replace 0-40 ms value with the one at 40th ms as current/voltage array is too short")
+                    logger.info(
+                        "For %s, unable to replace 0-90 ms values with the values at "
+                        "90 ms as current/voltage array is too short",
+                        stimulus_description,
+                    )
                     continue
 
         return data
