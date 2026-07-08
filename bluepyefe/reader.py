@@ -215,7 +215,10 @@ def _get_vu_stimulus_description(current_sweep):
     try:
         return _decode_nwb_value(current_sweep.attrs["stimulus_description"])
     except KeyError:
-        return _decode_nwb_value(current_sweep["stimulus_description"][()][0])
+        try:
+            return _decode_nwb_value(current_sweep["stimulus_description"][()][0])
+        except (KeyError, IndexError):
+            return None
 
 
 def _is_vu_nwb(content):
