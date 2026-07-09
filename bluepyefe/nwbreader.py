@@ -452,11 +452,27 @@ class VUNWBReader(NWBReader):
         )
         for sweep_name, current_sweep in list(self.content["stimulus"]["presentation"].items()):
 
-            stimulus_description = None
             try:
                 stimulus_description = current_sweep.attrs["stimulus_description"]
             except KeyError:
-                stimulus_description = current_sweep["stimulus_description"][()][0].decode('UTF-8')
+                try:
+                    stimulus_description = current_sweep["stimulus_description"][()][0]
+                except (KeyError, IndexError):
+                    logger.info(
+                        "Skipping %s because no VU stimulus_description metadata was found.",
+                        sweep_name,
+                    )
+                    continue
+
+            if stimulus_description is None:
+                logger.info(
+                    "Skipping %s because no VU stimulus_description metadata was found.",
+                    sweep_name,
+                )
+                continue
+
+            if not isinstance(stimulus_description, str):
+                stimulus_description = stimulus_description.decode('UTF-8')
 
             if stimulus_description not in PROTOCOL_VU_TO_BBP:
                 continue
@@ -496,8 +512,15 @@ class VUNWBReader(NWBReader):
                 data.pop(-1)
             else:
                 # Offset the current with the holding current
-                bias_current = voltage_sweeps[voltage_sweep_name]["bias_current"][()]
-                holding_current = float(numpy.asarray(bias_current).reshape(-1)[0]) * 1e-12  # in pA
+                try:
+                    bias_current = voltage_sweeps[voltage_sweep_name]["bias_current"][()]
+                    holding_current = float(numpy.asarray(bias_current).reshape(-1)[0]) * 1e-12  # in pA
+                except (KeyError, IndexError):
+                    logger.info(
+                        "No bias_current found for %s; assuming zero holding current.",
+                        voltage_sweep_name,
+                    )
+                    holding_current = 0.0
                 data[-1]["current"] = numpy.asarray(data[-1]["current"]) + holding_current
 
             # For selected VU Step/IV/IDRest stimuli, replace samples before 90 ms

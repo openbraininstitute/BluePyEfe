@@ -296,6 +296,15 @@ def test_vunwbreader_accepts_array_bias_current():
     assert len(reader.read()) == 1
 
 
+def test_vunwbreader_defaults_missing_bias_current_to_zero():
+    content = make_vu_content_for_step()
+    del content["acquisition"]["timeseries"]["sweepAD"]._children["bias_current"]
+    in_data = {"protocol_name": "Step"}
+    reader = VUNWBReader(content, target_protocols=["Step"], in_data=in_data)
+
+    assert len(reader.read()) == 1
+
+
 def test_nwb_inspection_detects_vu_layout():
     content = make_vu_content_for_step()
     reader_class = _get_nwb_reader_class(content)
@@ -314,6 +323,19 @@ def test_nwb_inspection_reads_vu_protocol_from_dataset():
 
     assert _get_nwb_protocols(content, VUNWBReader) == ["Step"]
     assert len(reader.read()) == 1
+
+
+def test_nwb_inspection_skips_vu_sweeps_missing_protocol_metadata():
+    content = make_vu_content_for_step()
+    content["stimulus"]["presentation"]["sweepDA"].attrs = {}
+    reader = VUNWBReader(
+        content,
+        target_protocols=["Step"],
+        in_data={"protocol_name": "Step"},
+    )
+
+    assert _get_nwb_protocols(content, VUNWBReader) == []
+    assert reader.read() == []
 
 
 def make_scala_content(protocol="Step", repetition=None):
