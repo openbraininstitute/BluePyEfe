@@ -72,63 +72,51 @@ eCodes = {
 # ---------------------------------------------------------------------------
 # Valid eFEL features per protocol name.
 #
-# The same eCode class (e.g. Step) is used for protocols with very different
-# feature sets (IDrest = spiking, IV = subthreshold, APWaveform = spike shape).
-# Therefore valid_efeatures is a per-protocol-name mapping, not a class
-# attribute.  The keys mirror those in ``eCodes`` and the matching logic in
-# :func:`get_valid_efeatures` uses the same case-insensitive substring rule as
-# :meth:`bluepyefe.cell.Cell.read_recordings`.
+# Per-protocol feature sets derived from SSCx e-model optimisation configs
+# (https://github.com/BlueBrain/SSCxEModelExamples). The same eCode class
+# (e.g. Step) backs protocols with very different feature needs, so the
+# grouping is per protocol role, not per eCode shape.
 # ---------------------------------------------------------------------------
 
-_SPIKING_STEP = (
-    "Spikecount",
-    "depol_block_bool",
+_IDREST = (
     "voltage_base",
     "voltage_after_stim",
+    "AP_amplitude",
+    "APlast_amp",
+    "AHP_depth",
     "mean_frequency",
-    "time_to_first_spike",
-    "time_to_last_spike",
     "inv_time_to_first_spike",
+    "time_to_last_spike",
     "inv_first_ISI",
     "inv_second_ISI",
     "inv_third_ISI",
+    "inv_fourth_ISI",
+    "inv_fifth_ISI",
     "inv_last_ISI",
+    "burst_number",
     "ISI_CV",
-    "ISI_log_slope",
-    "doublet_ISI",
-    "AHP_depth",
-    "AHP_time_from_peak",
-    "strict_burst_number",
-    "strict_burst_mean_freq",
-    "number_initial_spikes",
-    "irregularity_index",
-    "adaptation_index",
 )
 
-_THRESHOLD_STEP = (
+_IDTHRESH = (
     "Spikecount",
-    "mean_frequency",
     "voltage_base",
-    "voltage_after_stim",
+    "mean_frequency",
     "AHP_depth",
 )
 
 _AP_WAVEFORM = (
     "AP_amplitude",
     "AP1_amp",
+    "AP2_amp",
     "AP_duration_half_width",
     "AHP_depth",
-    "AP_begin_voltage",
-    "AP_begin_width",
 )
 
 _IV = (
     "voltage_base",
     "ohmic_input_resistance_vb_ssse",
-    "sag_amplitude",
-    "sag_ratio1",
-    "sag_ratio2",
-    "decay_time_constant_after_stim",
+    "voltage_deflection",
+    "voltage_deflection_begin",
 )
 
 _SAHP = (
@@ -139,6 +127,17 @@ _SAHP = (
     "AHP_time_from_peak",
 )
 
+_RMP = (
+    "voltage_base",
+    "Spikecount",
+)
+
+_SPIKEREC = (
+    "decay_time_constant_after_stim",
+    "voltage_after_stim",
+    "Spikecount",
+)
+
 _SUBTHRESHOLD = (
     "voltage_base",
     "ohmic_input_resistance_vb_ssse",
@@ -146,27 +145,27 @@ _SUBTHRESHOLD = (
 
 PROTOCOL_EFEATURES = {
     # Full spiking step protocols (Step eCode, depolarising amplitudes)
-    "spontaneous": _SPIKING_STEP,
-    "idrest": _SPIKING_STEP,
-    "step": _SPIKING_STEP,
-    "genericstep": _SPIKING_STEP,
-    "firepattern": _SPIKING_STEP,
-    "spontaps": _SPIKING_STEP,
-    "sponaps": _SPIKING_STEP,
-    "sponnohold30": _SPIKING_STEP,
-    "sponhold30": _SPIKING_STEP,
-    "spontnohold30": _SPIKING_STEP,
-    "sponthold30": _SPIKING_STEP,
-    "spontaneousnohold": _SPIKING_STEP,
-    "starthold": _SPIKING_STEP,
-    "startnohold": _SPIKING_STEP,
-    "delta": _SPIKING_STEP,
-    "iddepol": _SPIKING_STEP,
-    "irdepol": _SPIKING_STEP,
+    "spontaneous": _IDREST,
+    "idrest": _IDREST,
+    "step": _IDREST,
+    "genericstep": _IDREST,
+    "firepattern": _IDREST,
+    "spontaps": _IDREST,
+    "sponaps": _IDREST,
+    "sponnohold30": _IDREST,
+    "sponhold30": _IDREST,
+    "spontnohold30": _IDREST,
+    "sponthold30": _IDREST,
+    "spontaneousnohold": _IDREST,
+    "starthold": _IDREST,
+    "startnohold": _IDREST,
+    "delta": _IDREST,
+    "iddepol": _IDREST,
+    "irdepol": _IDREST,
     # Threshold-search step protocols (Step eCode, near-rheobase amplitudes)
-    "idthresh": _THRESHOLD_STEP,
-    "idthres": _THRESHOLD_STEP,
-    "idthreshold": _THRESHOLD_STEP,
+    "idthresh": _IDTHRESH,
+    "idthres": _IDTHRESH,
+    "idthreshold": _IDTHRESH,
     # AP waveform protocol (Step eCode, suprathreshold, single-spike)
     "apwaveform": _AP_WAVEFORM,
     # IV protocol (Step eCode, subthreshold amplitudes)
@@ -180,20 +179,18 @@ PROTOCOL_EFEATURES = {
     "ap_thresh": _AP_WAVEFORM,
     "apthresh": _AP_WAVEFORM,
     "apthreshold": _AP_WAVEFORM,
-    # Two-step protocols (HyperDePol / DeHyperPol eCodes, depolarising phases
-    # elicit spikes)
-    "hyperdepol": _SPIKING_STEP,
-    "dehyperpol": _SPIKING_STEP,
+    # Two-step protocols (depolarising phases elicit spikes)
+    "hyperdepol": _IDREST,
+    "dehyperpol": _IDREST,
     # Cheops protocols (triangular stimuli, depolarising phases elicit spikes)
-    "poscheops": _SPIKING_STEP,
-    "negcheops": _SPIKING_STEP,
-    # SpikeRec protocol (multi-spike stimulus, toff = tend so step-only
-    # features degrade — use minimal set)
-    "spikerec": _THRESHOLD_STEP,
+    "poscheops": _IDREST,
+    "negcheops": _IDREST,
+    # SpikeRec protocol (multi-spike stimulus, recovery features)
+    "spikerec": _SPIKEREC,
     # SineSpec / resonance protocol (chirp stimulus, subthreshold)
-    "sinespec": _THRESHOLD_STEP,
+    "sinespec": _IDTHRESH,
     # PinkNoise protocol (suprathreshold noisy stimulus)
-    "pinknoise": _SPIKING_STEP,
+    "pinknoise": _IDREST,
     # CapCheck protocol (capacitance check, subthreshold)
     "capcheck": _SUBTHRESHOLD,
 }
