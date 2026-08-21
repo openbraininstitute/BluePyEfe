@@ -111,7 +111,7 @@ Copyright (c) 2025-2026 Open Brain Institute
 .. |tests| image:: https://github.com/openbraininstitute/BluePyEfe/actions/workflows/build.yml/badge.svg?branch=master
                 :target: https://github.com/openbraininstitute/BluePyEfe/actions
                 :alt: Actions build status
-.. |coverage| image:: https://codecov.io/github/openbraininstitute/BluePyEfe/coverage.svg?branch=master
+.. |coverage| image:: https://codecov.io/gh/openbraininstitute/bluepyefe/branch/master/graph/badge.svg
                    :target: https://codecov.io/gh/openbraininstitute/BluePyEfe
                    :alt: coverage
 .. |gitter| image:: https://badges.gitter.im/Join%20Chat.svg
