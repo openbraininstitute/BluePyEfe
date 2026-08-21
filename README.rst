@@ -108,7 +108,7 @@ Copyright (c) 2025-2026 Open Brain Institute
 .. |license| image:: https://img.shields.io/pypi/l/bluepyefe.svg
                   :target: https://github.com/openbraininstitute/bluepyefe/blob/master/LICENSE.txt
                   :alt: license
-.. |tests| image:: https://github.com/openbraininstitute/BluePyEfe/workflows/Build/badge.svg?branch=master
+.. |tests| image:: https://github.com/openbraininstitute/BluePyEfe/actions/workflows/build.yml/badge.svg?branch=master
                 :target: https://github.com/openbraininstitute/BluePyEfe/actions
                 :alt: Actions build status
 .. |coverage| image:: https://codecov.io/github/openbraininstitute/BluePyEfe/coverage.svg?branch=master
