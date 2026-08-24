@@ -121,16 +121,6 @@ suppress_warnings = [
 html_theme = "obi_sphinx_theme"
 html_title = "BluepyEfe"
 html_show_sourcelink = False
-html_theme_options = {
-    "icon_links": [
-        {
-            "name": "GitHub",
-            "url": "https://github.com/openbraininstitute/BluePyEfe",
-            "icon": "fa-brands fa-github",
-        },
-    ],
-    "navbar_align": "left",
-}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = ['./']
