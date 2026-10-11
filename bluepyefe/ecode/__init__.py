@@ -20,6 +20,7 @@ from . import HyperDePol
 from . import SpikeRec
 from . import capCheck
 from . import negCheops
+from . import noise
 from . import pinkNoise
 from . import posCheops
 from . import ramp
@@ -65,6 +66,9 @@ eCodes = {
     "poscheops": posCheops.PosCheops,
     "spikerec": SpikeRec.SpikeRec,
     "sinespec": sineSpec.SineSpec,
+    "subwhitenoise": noise.Noise,
+    "whitenoise": noise.Noise,
+    "noiseou3": noise.Noise,
     "pinknoise": pinkNoise.PinkNoise,
     "capcheck": capCheck.CapCheck,
 }

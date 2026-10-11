@@ -172,6 +172,20 @@ class Protocol():
 
         params = [r.get_params() for r in self.recordings]
 
+        if getattr(ecode, "preserve_recorded_stimulus", False):
+            for other in params[1:]:
+                for key in ("time_series", "waveform", "stimulus_interval"):
+                    first = numpy.asarray(params[0][key], dtype=numpy.float64)
+                    candidate = numpy.asarray(other[key], dtype=numpy.float64)
+                    if first.shape != candidate.shape or first.tobytes() != candidate.tobytes():
+                        raise ValueError(
+                            "Distinct recorded noise stimuli require per-sweep targets; "
+                            "they cannot be averaged or silently replaced."
+                        )
+            for key, value in params[0].items():
+                setattr(ecode, key, value)
+            return ecode
+
         if self.global_rheobase is None and "amp" in params[0]:
             logger.warning(
                 "No global threshold amplitude passed. This can result"
