@@ -3,6 +3,7 @@
 import json
 import os
 
+import h5py
 import numpy
 import pytest
 
@@ -12,6 +13,43 @@ from bluepyefe.ecode.noise import Noise
 from bluepyefe.protocol import Protocol
 
 NAMES = ("SubWhiteNoise", "WhiteNoise", "NoiseOU3")
+RECORDED_COUNTS = {"SubWhiteNoise": [0, 0, 0, 0], "WhiteNoise": [3249], "NoiseOU3": [3223]}
+SYNTHETIC_COUNTS = {"SubWhiteNoise": [0, 0, 0, 0], "WhiteNoise": [1], "NoiseOU3": [2]}
+
+
+@pytest.fixture
+def noise_nwb(tmp_path):
+    """Provide a small LNMC-layout recording or the configured external file."""
+    path = tmp_path / "noise.nwb"
+    rng = numpy.random.default_rng(8)
+    with h5py.File(path, "w") as content:
+        content.attrs["nwb_version"] = "2.4.0"
+        acquisition = content.create_group("acquisition")
+        presentation = content.create_group("stimulus/presentation")
+        organization = content.create_group("data_organization/Cell 1")
+        for name, counts in SYNTHETIC_COUNTS.items():
+            scale = 0.01 if name == "SubWhiteNoise" else 0.188
+            for repetition, count in enumerate(counts, 1):
+                voltage_name = f"ic__{name}__{repetition}"
+                current_name = voltage_name.replace("ic_", "ics_")
+                voltage = numpy.full(1000, -65.0)
+                for peak in (200, 600)[:count]:
+                    voltage[peak - 3 : peak + 4] = [-65, -45, -10, 20, -10, -45, -65]
+                current = 0.1 * repetition + rng.normal(0.0, scale, len(voltage))
+                for group, key, samples, unit in (
+                    (acquisition, voltage_name, voltage * 1e-3, "volts"),
+                    (presentation, current_name, current * 1e-9, "amperes"),
+                ):
+                    series = group.create_group(key)
+                    data = series.create_dataset("data", data=samples)
+                    data.attrs.update(conversion=1.0, unit=unit)
+                    start = series.create_dataset("starting_time", data=0.0)
+                    start.attrs.update(rate=10000.0, unit="seconds")
+                organization.create_group(
+                    f"{name}/repetition {repetition:02d}/sweep 1/{voltage_name}"
+                )
+    external = os.environ.get("BLUEPY_NOISE_NWB")
+    return (external, RECORDED_COUNTS) if external else (str(path), SYNTHETIC_COUNTS)
 
 
 def recording(name="SubWhiteNoise", current=None, config=None, reader_extra=None):
@@ -156,13 +194,12 @@ def test_different_time_or_feature_windows_cannot_be_pooled():
             protocol.as_dict()
 
 
-@pytest.mark.skipif(not os.environ.get("BLUEPY_NOISE_NWB"), reason="External NWB not configured")
-def test_real_nwb_noise_sweeps():
-    expected = {"SubWhiteNoise": [0, 0, 0, 0], "WhiteNoise": [3249], "NoiseOU3": [3223]}
+def test_nwb_noise_sweeps(noise_nwb):
+    path, expected = noise_nwb
     for name, counts in expected.items():
         cell = Cell("NWB")
         cell.read_recordings(
-            [{"filepath": os.environ["BLUEPY_NOISE_NWB"], "protocol_name": name}],
+            [{"filepath": path, "protocol_name": name}],
             name,
             efel_settings={"Threshold": -20.0, "interp_step": 0.025},
         )
@@ -176,23 +213,20 @@ def test_real_nwb_noise_sweeps():
             )
 
 
-@pytest.mark.skipif(not os.environ.get("BLUEPY_NOISE_NWB"), reason="External NWB not configured")
-def test_real_nwb_end_to_end_per_sweep_targets(tmp_path):
+def test_nwb_end_to_end_per_sweep_targets(tmp_path, noise_nwb):
     from bluepyefe.extract import extract_efeatures
 
+    path, counts_by_protocol = noise_nwb
     protocols = {}
     targets = []
     expected = {}
-    for name, counts, amplitude in (
-        ("SubWhiteNoise", [0, 0, 0, 0], 0.01),
-        ("WhiteNoise", [3249], 0.188),
-        ("NoiseOU3", [3223], 0.188),
-    ):
+    for name, counts in counts_by_protocol.items():
+        amplitude = 0.01 if name == "SubWhiteNoise" else 0.188
         for repetition, count in enumerate(counts, 1):
             alias = f"{name}_rep{repetition}"
             protocols[alias] = [
                 {
-                    "filepath": os.environ["BLUEPY_NOISE_NWB"],
+                    "filepath": path,
                     "protocol_name": name,
                     "repetition": repetition,
                 }
