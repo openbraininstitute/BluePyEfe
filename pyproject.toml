@@ -17,7 +17,7 @@ dependencies = [
     "neo",
     "matplotlib",
     "efel",
-    "scipy>=1.16.1",
+    "scipy>=1.15",
     "h5py",
     "igor2",
 ]
